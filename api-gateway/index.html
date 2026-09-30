@@ -3,100 +3,349 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Analyse PCG</title>
+  <meta name="color-scheme" content="dark">
+  <title>Analyse PCG · CardioAgent-Ops</title>
   <style>
+    /* ---------- the 12 colors of the color wheel + the black theme ---------- */
+    :root {
+      --red: #FF2D1F;
+      --red-orange: #FF5A1F;
+      --orange: #FF8C00;
+      --yellow-orange: #FFB300;
+      --yellow: #FFF22E;
+      --yellow-green: #C6E03A;
+      --green: #5DB52C;
+      --blue-green: #0D8FD0;
+      --blue: #0A4DFF;
+      --blue-violet: #4B0FB0;
+      --violet: #8A0FC0;
+      --red-violet: #A3194C;
+
+      --bg: #000000;        /* the page: black */
+      --card: #0C0C0F;      /* the main card */
+      --surface: #141419;   /* the boxes inside the card */
+      --border: #24242C;
+      --text: #F5F5F7;
+      --muted: #9C9CA8;
+
+      /* the wheel as a line (the thin bar at the top of the card) */
+      --spectrum: linear-gradient(90deg, var(--red), var(--red-orange), var(--orange), var(--yellow-orange),
+                  var(--yellow), var(--yellow-green), var(--green), var(--blue-green), var(--blue),
+                  var(--blue-violet), var(--violet), var(--red-violet));
+    }
+
+    * { box-sizing: border-box; }
+
     body {
       margin: 0;
-      font-family: "Segoe UI", system-ui, Arial, sans-serif;
-      background: #eef2f8;
-      color: #1f2937;
+      min-height: 100vh;
+      font-family: "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
+      color: var(--text);
+      background-color: var(--bg);
+      /* a very soft violet light above the card, the rest of the page stays black */
+      background-image: radial-gradient(700px 360px at 50% -120px, rgba(138, 15, 192, 0.22), transparent 70%);
+      background-repeat: no-repeat;
     }
+
+    /* ---------- the card ---------- */
     .card {
-      max-width: 560px;
-      margin: 60px auto;
-      padding: 32px;
-      background: white;
+      position: relative;
+      max-width: 600px;
+      margin: 56px auto;
+      padding: 36px 36px 26px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      overflow: hidden;
+      box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6);
+    }
+    .card::before {               /* the thin color-wheel line at the top of the card */
+      content: "";
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      background: var(--spectrum);
+    }
+
+    /* ---------- header: logo + title + API status ---------- */
+    header { display: flex; align-items: center; gap: 16px; }
+    .logo {
+      flex: none;
+      width: 54px; height: 54px;
+      border-radius: 50%;
+      /* the color wheel, in the same order as the image (clockwise from the top) */
+      background: conic-gradient(var(--violet), var(--blue-violet), var(--blue), var(--blue-green), var(--green),
+                  var(--yellow-green), var(--yellow), var(--yellow-orange), var(--orange), var(--red-orange),
+                  var(--red), var(--red-violet), var(--violet));
+      display: grid; place-items: center;
+    }
+    .logo span {                  /* the black circle in the middle of the wheel */
+      width: 40px; height: 40px;
+      border-radius: 50%;
+      background: var(--card);
+      display: grid; place-items: center;
+    }
+    .logo svg { width: 20px; height: 20px; }
+    h1 { margin: 0; font-size: 22px; font-weight: 600; letter-spacing: 0.2px; }
+    .subtitle { margin: 3px 0 0; font-size: 14px; color: var(--muted); }
+
+    .status {
+      margin-left: auto;
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 6px 12px;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      font-size: 12.5px; color: var(--muted);
+      white-space: nowrap;
+    }
+    .status .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+    .status.online .dot { background: var(--green); box-shadow: 0 0 0 4px rgba(93, 181, 44, 0.18); }
+    .status.offline .dot { background: var(--red); box-shadow: 0 0 0 4px rgba(255, 45, 31, 0.18); }
+
+    .intro { margin: 26px 0 18px; color: var(--muted); font-size: 15px; line-height: 1.55; }
+    .intro b { color: var(--text); font-weight: 600; }
+
+    /* ---------- the box to choose / drop the .wav ---------- */
+    .drop {
+      position: relative;
+      display: flex; flex-direction: column; align-items: center; gap: 6px;
+      padding: 30px 20px;
+      border: 1.5px dashed #34343F;
       border-radius: 14px;
-      box-shadow: 0 6px 24px rgba(0, 0, 0, 0.08);
-    }
-    h1 { margin: 0 0 6px; font-size: 26px; }
-    .subtitle { margin: 0 0 28px; color: #6b7280; }
-    .upload {
-      padding: 24px;
-      border: 2px dashed #c3cde0;
-      border-radius: 10px;
-      background: #f8fafd;
+      background: var(--surface);
       text-align: center;
-    }
-    button {
-      width: 100%;
-      margin-top: 18px;
-      padding: 12px;
-      border: none;
-      border-radius: 8px;
-      background: #2563eb;
-      color: white;
-      font-size: 16px;
       cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
     }
-    button:hover { background: #1d4ed8; }
-    #result { margin-top: 24px; }
-    table { width: 100%; border-collapse: collapse; }
-    th, td { padding: 10px; border-bottom: 1px solid #e5e7eb; text-align: left; vertical-align: top; }
-    th { width: 40%; color: #6b7280; font-weight: 600; }
-    .loading { color: #2563eb; }
-    .error { padding: 12px; border-radius: 8px; background: #fef2f2; color: #b91c1c; }
-    .footer { margin-top: 28px; font-size: 14px; color: #6b7280; text-align: center; }
-    .footer a { color: #2563eb; }
+    .drop:hover, .drop.over { border-color: var(--blue-green); background: #10151D; }
+    .drop.has-file { border-style: solid; border-color: var(--green); }
+    .drop.bad-file { border-style: solid; border-color: var(--red); }
+    .drop:focus-within { outline: 2px solid var(--blue-green); outline-offset: 3px; }
+    .drop svg { width: 36px; height: 36px; margin-bottom: 6px; }
+    .drop-title { font-weight: 600; word-break: break-all; }
+    .drop-hint { font-size: 13.5px; color: var(--muted); }
+    .drop input {                 /* the real file input: invisible, the whole box opens it */
+      position: absolute;
+      width: 1px; height: 1px;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    /* ---------- the button ---------- */
+    .btn {
+      width: 100%;
+      margin-top: 16px;
+      padding: 14px;
+      display: flex; align-items: center; justify-content: center; gap: 10px;
+      border: none;
+      border-radius: 12px;
+      background: linear-gradient(90deg, var(--violet), var(--blue));
+      color: #FFFFFF;
+      font: inherit; font-size: 16px; font-weight: 600; letter-spacing: 0.3px;
+      cursor: pointer;
+      transition: filter 0.2s, transform 0.1s;
+    }
+    .btn:hover { filter: brightness(1.15); }
+    .btn:active { transform: scale(0.99); }
+    .btn:focus-visible { outline: 2px solid var(--blue-green); outline-offset: 3px; }
+    .btn:disabled { cursor: wait; filter: saturate(0.6) brightness(0.8); }
+    .spinner {
+      display: none;
+      width: 16px; height: 16px;
+      border: 2px solid rgba(255, 255, 255, 0.35);
+      border-top-color: #FFFFFF;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    .btn.loading .spinner { display: inline-block; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ---------- the result ---------- */
+    #result { margin-top: 22px; }
+    #result:empty { margin-top: 0; }
+    .panel {
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      background: var(--surface);
+      overflow: hidden;
+    }
+    .panel-head {
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--border);
+    }
+    .panel-title { font-weight: 600; }
+    dl { margin: 0; }
+    .row {
+      display: grid;
+      grid-template-columns: 38% 1fr;
+      gap: 12px;
+      padding: 12px 18px;
+      border-bottom: 1px solid var(--border);
+    }
+    .row:last-child { border-bottom: none; }
+    .row dt { color: var(--muted); font-size: 14px; }
+    .row dd { margin: 0; font-variant-numeric: tabular-nums; word-break: break-word; }
+
+    .badge {
+      display: inline-flex; align-items: center;
+      padding: 3px 10px;
+      border-radius: 999px;
+      font-size: 12.5px; font-weight: 600;
+    }
+    .badge.green { color: #8FDB62; background: rgba(93, 181, 44, 0.14); border: 1px solid rgba(93, 181, 44, 0.4); }
+    .badge.red { color: #FF7A6E; background: rgba(255, 45, 31, 0.12); border: 1px solid rgba(255, 45, 31, 0.4); }
+
+    .error {
+      padding: 14px 18px;
+      border: 1px solid rgba(255, 45, 31, 0.35);
+      border-left: 4px solid var(--red);
+      border-radius: 12px;
+      background: rgba(255, 45, 31, 0.08);
+      color: #FFB3AB;
+      line-height: 1.5;
+    }
+    .error strong { display: block; color: #FF7A6E; }
+
+    /* ---------- footer ---------- */
+    footer {
+      margin-top: 28px;
+      padding-top: 18px;
+      border-top: 1px solid var(--border);
+      display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;
+      font-size: 13px; color: var(--muted);
+    }
+    footer nav { display: flex; gap: 18px; }
+    footer a { color: var(--text); opacity: 0.8; text-decoration: none; }
+    footer a:hover { opacity: 1; color: var(--blue-green); }
+
+    /* ---------- small screens (phone) ---------- */
+    @media (max-width: 640px) {
+      .card { margin: 16px; padding: 28px 20px 22px; }
+      header { flex-wrap: wrap; }
+      .status { margin-left: 0; }
+      .row { grid-template-columns: 1fr; gap: 2px; }
+    }
   </style>
 </head>
 <body>
-  <div class="card">
-    <h1>Analyse PCG</h1>
-    <p class="subtitle">Envoyez un enregistrement cardiaque (.wav) pour l'analyser.</p>
+  <main class="card">
+    <header>
+      <div class="logo" aria-hidden="true">
+        <span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="#F5F5F7" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/>
+            <path d="M3.22 12H9.5l.5-1 2 4.5 2-7 1.5 3.5h5.27"/>
+          </svg>
+        </span>
+      </div>
+      <div>
+        <h1>CardioAgent-Ops</h1>
+        <p class="subtitle">Analyse cardio-acoustique (PCG)</p>
+      </div>
+      <span id="status" class="status"><span class="dot"></span><span id="status-text">Connexion…</span></span>
+    </header>
 
-    <div class="upload">
-      <input type="file" id="file" accept=".wav">
-    </div>
-    <button onclick="analyze()">Analyser</button>
-
-    <div id="result"></div>
-
-    <p class="footer">
-      Service 5 : api-gateway &middot; <a href="/docs">Documentation de l'API (/docs)</a> &middot; <a href="/health">/health</a>
+    <p class="intro">
+      Déposez un enregistrement du cœur au format <b>.wav</b>. La passerelle l'envoie au moteur audio,
+      puis affiche le résultat de l'analyse.
     </p>
-  </div>
+
+    <label id="drop" class="drop" for="file">
+      <svg viewBox="0 0 24 24" fill="none" stroke="url(#wave)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <defs>
+          <linearGradient id="wave" x1="0" y1="0" x2="24" y2="0" gradientUnits="userSpaceOnUse">
+            <stop offset="0" stop-color="#FF2D1F"/>
+            <stop offset="0.35" stop-color="#FFB300"/>
+            <stop offset="0.6" stop-color="#5DB52C"/>
+            <stop offset="0.8" stop-color="#0A4DFF"/>
+            <stop offset="1" stop-color="#8A0FC0"/>
+          </linearGradient>
+        </defs>
+        <path d="M2 13a2 2 0 0 0 2-2V7a2 2 0 0 1 4 0v13a2 2 0 0 0 4 0V4a2 2 0 0 1 4 0v13a2 2 0 0 0 4 0v-4a2 2 0 0 1 2-2"/>
+      </svg>
+      <span id="drop-title" class="drop-title">Glissez votre fichier .wav ici</span>
+      <span id="drop-hint" class="drop-hint">ou cliquez pour le choisir</span>
+      <input type="file" id="file" accept=".wav,audio/wav">
+    </label>
+
+    <button id="analyze-btn" class="btn" onclick="analyze()">
+      <span class="spinner"></span><span id="btn-text">Analyser</span>
+    </button>
+
+    <section id="result" aria-live="polite"></section>
+
+    <footer>
+      <span>Service 5 · api-gateway</span>
+      <nav>
+        <a href="/docs">Documentation API</a>
+        <a href="/health">État du service</a>
+      </nav>
+    </footer>
+  </main>
 
   <script>
     // nicer names for the fields the gateway sends back
     const LABELS = {
       filename: "Fichier",
-      size_bytes: "Taille (octets)",
-      duration_s: "Durée (secondes)",
+      size_bytes: "Taille",
+      duration_s: "Durée",
       message: "Message",
       prediction: "Prédiction"
     };
 
-    function showError(text) {
-      const result = document.getElementById("result");
-      result.innerHTML = "";
-      const p = document.createElement("p");
-      p.className = "error";
-      p.textContent = text;
-      result.appendChild(p);
+    const fileInput = document.getElementById("file");
+    const drop = document.getElementById("drop");
+    const result = document.getElementById("result");
+    const button = document.getElementById("analyze-btn");
+
+    // ---------- 1. is the API running? (green or red dot at the top) ----------
+    fetch("/health")
+      .then(response => setStatus(response.ok))
+      .catch(() => setStatus(false));
+
+    function setStatus(online) {
+      document.getElementById("status").className = "status " + (online ? "online" : "offline");
+      document.getElementById("status-text").textContent = online ? "API en ligne" : "API hors ligne";
     }
 
-    async function analyze() {
-      const file = document.getElementById("file").files[0];
-      const result = document.getElementById("result");
+    // ---------- 2. choose the file: click on the box, or drag & drop it ----------
+    fileInput.addEventListener("change", showChosenFile);
 
+    drop.addEventListener("dragover", event => {
+      event.preventDefault();
+      drop.classList.add("over");
+    });
+    drop.addEventListener("dragleave", () => drop.classList.remove("over"));
+    drop.addEventListener("drop", event => {
+      event.preventDefault();
+      drop.classList.remove("over");
+      fileInput.files = event.dataTransfer.files;    // put the dropped file in the file input
+      showChosenFile();
+    });
+
+    function showChosenFile() {
+      const file = fileInput.files[0];
+      if (!file) return;
+      const isWav = file.name.toLowerCase().endsWith(".wav");
+      drop.classList.toggle("has-file", isWav);     // green border: a .wav
+      drop.classList.toggle("bad-file", !isWav);    // red border: not a .wav
+      document.getElementById("drop-title").textContent = file.name;
+      document.getElementById("drop-hint").textContent =
+        (isWav ? formatSize(file.size) : "Ce n'est pas un .wav") + " · cliquez pour changer";
+      result.innerHTML = "";
+    }
+
+    // ---------- 3. send the file to /analyze_pcg (like "Try it out" in /docs) ----------
+    async function analyze() {
+      const file = fileInput.files[0];
       if (!file) {
-        showError("Choisissez d'abord un fichier .wav");
+        showError("Aucun fichier", "Choisissez d'abord un fichier .wav.");
         return;
       }
-      result.innerHTML = '<p class="loading">Analyse en cours...</p>';
+      setLoading(true);
+      result.innerHTML = "";
 
-      // send the file to /analyze_pcg, like "Try it out" in /docs does
       const form = new FormData();
       form.append("file", file);    // "file" = the same name as in main.py
 
@@ -104,27 +353,88 @@
         const response = await fetch("/analyze_pcg", { method: "POST", body: form });
         const data = await response.json();
 
-        // error from the gateway (400: not a .wav, 503: a service is down)
-        if (!response.ok) {
+        if (response.ok) {
+          showResult(data);
+        } else {
+          // error from the gateway (400: not a .wav, 503: a service is down)
           const detail = typeof data.detail === "string" ? data.detail : JSON.stringify(data.detail);
-          showError("Erreur " + response.status + " : " + detail);
-          return;
+          showError("Erreur " + response.status, detail);
         }
-
-        // success: one table row per field of the answer
-        const table = document.createElement("table");
-        for (const key in data) {
-          const name = document.createElement("th");
-          name.textContent = LABELS[key] || key;
-          const value = document.createElement("td");
-          value.textContent = typeof data[key] === "object" ? JSON.stringify(data[key]) : data[key];
-          table.insertRow().append(name, value);
-        }
-        result.innerHTML = "";
-        result.appendChild(table);
       } catch (error) {
-        showError("Le serveur ne répond pas : " + error);
+        showError("Le serveur ne répond pas", String(error));
       }
+      setLoading(false);
+    }
+
+    // ---------- 4. show the answer: one line per field ----------
+    function showResult(data) {
+      const panel = document.createElement("div");
+      panel.className = "panel";
+
+      const head = document.createElement("div");
+      head.className = "panel-head";
+      const title = document.createElement("span");
+      title.className = "panel-title";
+      title.textContent = "Résultat de l'analyse";
+      head.append(title, makeBadge("Reçu", "green"));
+
+      const rows = document.createElement("dl");
+      for (const key in data) {
+        const row = document.createElement("div");
+        row.className = "row";
+        const name = document.createElement("dt");
+        name.textContent = LABELS[key] || key;
+        const value = document.createElement("dd");
+        if (key === "prediction") {
+          // later the audio engine answers "normal" or "abnormal": green or red badge
+          const normal = String(data[key]).toLowerCase() === "normal";
+          value.append(makeBadge(data[key], normal ? "green" : "red"));
+        } else {
+          value.textContent = formatValue(key, data[key]);
+        }
+        row.append(name, value);
+        rows.append(row);
+      }
+
+      panel.append(head, rows);
+      result.append(panel);
+    }
+
+    function showError(title, text) {
+      result.innerHTML = "";
+      const box = document.createElement("div");
+      box.className = "error";
+      const strong = document.createElement("strong");
+      strong.textContent = title;
+      box.append(strong, text);
+      result.append(box);
+    }
+
+    // ---------- small helpers ----------
+    function makeBadge(text, color) {
+      const badge = document.createElement("span");
+      badge.className = "badge " + color;
+      badge.textContent = text;
+      return badge;
+    }
+
+    function setLoading(loading) {
+      button.disabled = loading;
+      button.classList.toggle("loading", loading);
+      document.getElementById("btn-text").textContent = loading ? "Analyse en cours…" : "Analyser";
+    }
+
+    function formatValue(key, value) {
+      if (value === null || value === undefined) return "—";
+      if (key === "size_bytes") return formatSize(value) + " (" + value.toLocaleString("fr-FR") + " octets)";
+      if (key === "duration_s") return value.toFixed(2) + " s";
+      if (typeof value === "object") return JSON.stringify(value);
+      return value;
+    }
+
+    function formatSize(bytes) {
+      if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " Ko";
+      return (bytes / 1024 / 1024).toFixed(1) + " Mo";
     }
   </script>
 </body>
