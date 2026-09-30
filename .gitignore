@@ -1,0 +1,12 @@
+# Virtual environment
+venv/
+
+# Dataset folders
+ourdataset/
+ourdataset_correct/
+pascal_dataset/
+physionet_dataset/
+
+# Data files
+*.data
+*.wav
