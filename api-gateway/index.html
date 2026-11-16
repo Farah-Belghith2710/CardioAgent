@@ -39,9 +39,9 @@
     /* ---------- the card ---------- */
     .card {
       position: relative;
-      max-width: 680px;
-      margin: 56px auto;
-      padding: 36px 36px 26px;
+      max-width: 1180px;          /* a computer page (on a phone: see the end of the style) */
+      margin: 40px auto;
+      padding: 40px 44px 28px;
       background: var(--card);
       border: 1px solid var(--border);
       border-radius: 18px;
@@ -83,14 +83,20 @@
     .status.online .dot { background: var(--green); box-shadow: 0 0 0 4px rgba(93, 181, 44, 0.18); }
     .status.offline .dot { background: var(--red); box-shadow: 0 0 0 4px rgba(255, 45, 31, 0.18); }
 
-    .intro { margin: 26px 0 18px; color: var(--muted); font-size: 15px; line-height: 1.55; }
-    .intro b { color: var(--text); font-weight: 600; }
+    /* ---------- 2 columns: left = the .wav, right = the result ---------- */
+    .layout {
+      display: grid;
+      grid-template-columns: 380px 1fr;
+      gap: 32px;
+      align-items: start;
+      margin-top: 30px;
+    }
 
     /* ---------- the box to choose / drop the .wav ---------- */
     .drop {
       position: relative;
       display: flex; flex-direction: column; align-items: center; gap: 6px;
-      padding: 30px 20px;
+      padding: 64px 20px;
       border: 1.5px dashed #34343F;
       border-radius: 14px;
       background: var(--surface);
@@ -143,8 +149,18 @@
     @keyframes spin { to { transform: rotate(360deg); } }
 
     /* ---------- the result ---------- */
-    #result { margin-top: 22px; }
-    #result:empty { margin-top: 0; }
+    #result { min-width: 0; }         /* min-width: 0 = the table can scroll instead of making the page wider */
+    #result:empty::before {           /* before the first analysis: a message in the empty right column */
+      content: "Le résultat de l'analyse s'affichera ici : la réponse du modèle officiel, puis le benchmark des modèles.";
+      display: flex; align-items: center; justify-content: center;
+      min-height: 360px;
+      padding: 24px;
+      border: 1.5px dashed #34343F;
+      border-radius: 14px;
+      color: var(--muted);
+      text-align: center;
+      line-height: 1.6;
+    }
     .panel {
       border: 1px solid var(--border);
       border-radius: 14px;
@@ -204,14 +220,21 @@
       margin-top: 28px;
       padding-top: 18px;
       border-top: 1px solid var(--border);
-      display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;
+      display: flex; justify-content: flex-end; align-items: center; flex-wrap: wrap; gap: 10px;    /* the links on the right */
       font-size: 13px; color: var(--muted);
     }
     footer nav { display: flex; gap: 18px; }
     footer a { color: var(--text); opacity: 0.8; text-decoration: none; }
     footer a:hover { opacity: 1; color: var(--blue-light); }
 
-    /* ---------- small screens (phone) ---------- */
+    /* ---------- small screens (tablet, phone): back to 1 column ---------- */
+    @media (max-width: 900px) {
+      .layout { grid-template-columns: 1fr; gap: 0; }
+      .drop { padding: 30px 20px; }
+      #result { margin-top: 22px; }
+      #result:empty { margin-top: 0; }
+      #result:empty::before { display: none; }
+    }
     @media (max-width: 640px) {
       .card { margin: 16px; padding: 28px 20px 22px; }
       header { flex-wrap: wrap; }
@@ -236,11 +259,9 @@
       <span id="status" class="status"><span class="dot"></span><span id="status-text">Connexion…</span></span>
     </header>
 
-    <p class="intro">
-      Déposez un enregistrement du cœur au format <b>.wav</b>. La passerelle l'envoie au moteur audio,
-      puis affiche le résultat de l'analyse.
-    </p>
-
+    <div class="layout">
+    <!-- left column: the .wav -->
+    <section>
     <label id="drop" class="drop" for="file">
       <svg viewBox="0 0 24 24" fill="none" stroke="#6F9BFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <path d="M2 13a2 2 0 0 0 2-2V7a2 2 0 0 1 4 0v13a2 2 0 0 0 4 0V4a2 2 0 0 1 4 0v13a2 2 0 0 0 4 0v-4a2 2 0 0 1 2-2"/>
@@ -253,11 +274,13 @@
     <button id="analyze-btn" class="btn" onclick="analyze()">
       <span class="spinner"></span><span id="btn-text">Analyser</span>
     </button>
+    </section>
 
+    <!-- right column: the result -->
     <section id="result" aria-live="polite"></section>
+    </div>
 
     <footer>
-      <span>Service 5 · api-gateway</span>
       <nav>
         <a href="/docs">Documentation API</a>
         <a href="/health">État du service</a>
@@ -281,7 +304,7 @@
     };
 
     // nicer names for the models of the benchmark
-    const MODEL_NAMES = { DecisionTree: "Arbre de décision", SVM: "SVM", CNN: "CNN" };
+    const MODEL_NAMES = { DecisionTree: "Decision Tree", SVM: "SVM", CNN: "CNN" };
 
     const fileInput = document.getElementById("file");
     const drop = document.getElementById("drop");
