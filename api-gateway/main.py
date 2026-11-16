@@ -33,11 +33,18 @@ def send_to_service(url, files=None, json=None):
     # send a POST request to another service and return its JSON answer
     try:
         response = requests.post(url, files=files, json=json, timeout=60)
-        response.raise_for_status()    # error if the service answered with an error code
-        return response.json()
     except requests.RequestException as error:
-        # the service is down or answered badly -> clear message for the client
+        # the service is down -> clear message for the client
         raise HTTPException(status_code=503, detail="Service injoignable : " + url + " (" + str(error) + ")")
+
+    if response.status_code != 200:
+        # the service answered, but with an error (for example a silent .wav) -> we give its message to the client
+        try:
+            detail = response.json()["detail"]
+        except Exception:
+            detail = response.text
+        raise HTTPException(status_code=response.status_code, detail=detail)
+    return response.json()
 
 
 app = FastAPI(title="api-gateway", description="Service 5 : point d'entrée unique de la plateforme PCG")

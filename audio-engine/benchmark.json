@@ -1,0 +1,38 @@
+{
+    "best_model": "CNN",
+    "models": [
+        {
+            "model": "CNN",
+            "file": "cardio_model.onnx",
+            "features": "mel spectrogram 40 x 157 (5 s, 2000 Hz)",
+            "seconds": 5,
+            "recall": 0.925,
+            "precision": 0.51,
+            "f1": 0.655,
+            "accuracy": 0.778,
+            "mlflow_run_id": "fb0b22e7b5c34a30b6b7ecde8a45d7dc"
+        },
+        {
+            "model": "SVM",
+            "file": "svm.onnx",
+            "features": "mel spectrogram flatten (30 bands)",
+            "seconds": 5,
+            "recall": 0.829,
+            "precision": 0.521,
+            "f1": 0.639,
+            "accuracy": 0.791,
+            "mlflow_run_id": "cc8036ecc5614bd49ffef3dfb68c1839"
+        },
+        {
+            "model": "DecisionTree",
+            "file": "decisiontree.onnx",
+            "features": "MFCC mean + std (26)",
+            "seconds": 5,
+            "recall": 0.718,
+            "precision": 0.559,
+            "f1": 0.629,
+            "accuracy": 0.81,
+            "mlflow_run_id": "a0b4df459e034c7f826ac3703bc447c3"
+        }
+    ]
+}

@@ -39,7 +39,7 @@
     /* ---------- the card ---------- */
     .card {
       position: relative;
-      max-width: 600px;
+      max-width: 680px;
       margin: 56px auto;
       padding: 36px 36px 26px;
       background: var(--card);
@@ -190,6 +190,15 @@
     }
     .error strong { display: block; color: #FF7A6E; }
 
+    /* ---------- the benchmark table (1 line per model) ---------- */
+    .bench-panel { margin-top: 14px; }
+    .table-wrap { overflow-x: auto; }
+    table.bench { width: 100%; border-collapse: collapse; font-size: 13.5px; font-variant-numeric: tabular-nums; }
+    .bench th, .bench td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border); white-space: nowrap; }
+    .bench th { color: var(--muted); font-weight: 500; font-size: 12.5px; }
+    .bench tr.best td { background: rgba(10, 77, 255, 0.08); }    /* the best model = the official answer */
+    .bench-note { padding: 10px 18px 14px; color: var(--muted); font-size: 12.5px; line-height: 1.5; }
+
     /* ---------- footer ---------- */
     footer {
       margin-top: 28px;
@@ -263,8 +272,16 @@
       size_bytes: "Taille",
       duration_s: "Durée",
       message: "Message",
-      prediction: "Prédiction"
+      prediction: "Prédiction",
+      probability_abnormal: "Probabilité « anormal »",
+      model: "Modèle (meilleur recall)",
+      features: "Entrée du modèle",
+      model_scores: "Scores du modèle (3 folds)",
+      warning: "Attention"
     };
+
+    // nicer names for the models of the benchmark
+    const MODEL_NAMES = { DecisionTree: "Arbre de décision", SVM: "SVM", CNN: "CNN" };
 
     const fileInput = document.getElementById("file");
     const drop = document.getElementById("drop");
@@ -348,19 +365,27 @@
       const title = document.createElement("span");
       title.className = "panel-title";
       title.textContent = "Résultat de l'analyse";
-      head.append(title, makeBadge("Reçu", "blue"));
+      if ("prediction" in data) {
+        // the audio engine answered: green badge = normal, red badge = abnormal
+        const normal = data.prediction === "normal";
+        head.append(title, makeBadge(normal ? "Normal" : "Anormal", normal ? "green" : "red"));
+      } else {
+        head.append(title, makeBadge("Reçu", "blue"));
+      }
 
       const rows = document.createElement("dl");
       for (const key in data) {
+        // empty field (for example: no warning) -> no line. The benchmark has its own table (below)
+        if (data[key] === null || key === "benchmark") continue;
         const row = document.createElement("div");
         row.className = "row";
         const name = document.createElement("dt");
         name.textContent = LABELS[key] || key;
         const value = document.createElement("dd");
         if (key === "prediction") {
-          // later the audio engine answers "normal" or "abnormal": green or red badge
-          const normal = String(data[key]).toLowerCase() === "normal";
-          value.append(makeBadge(data[key], normal ? "green" : "red"));
+          // the audio engine answers "normal" or "abnormal": green or red badge
+          const normal = data[key] === "normal";
+          value.append(makeBadge(normal ? "Normal" : "Anormal", normal ? "green" : "red"));
         } else {
           value.textContent = formatValue(key, data[key]);
         }
@@ -369,6 +394,63 @@
       }
 
       panel.append(head, rows);
+      result.append(panel);
+      if (data.benchmark) showBenchmark(data.benchmark);
+    }
+
+    // ---------- 5. the benchmark: the answer of each model for this wav + its scores in MLflow ----------
+    function showBenchmark(answers) {
+      const panel = document.createElement("div");
+      panel.className = "panel bench-panel";
+
+      const head = document.createElement("div");
+      head.className = "panel-head";
+      const title = document.createElement("span");
+      title.className = "panel-title";
+      title.textContent = "Benchmark des modèles";
+      head.append(title, makeBadge("Scores MLflow · 3 folds", "blue"));
+
+      const table = document.createElement("table");
+      table.className = "bench";
+      const header = document.createElement("tr");
+      for (const name of ["Modèle", "Ce wav", "Proba.", "Recall", "Précision", "F1", "Accuracy"]) {
+        const th = document.createElement("th");
+        th.textContent = name;
+        header.append(th);
+      }
+      table.append(header);
+
+      answers.forEach((answer, i) => {
+        const line = document.createElement("tr");
+        if (i === 0) line.className = "best";    // the first model = the best recall = the official answer
+        const normal = answer.prediction === "normal";
+        const cells = [
+          (MODEL_NAMES[answer.model] || answer.model) + (i === 0 ? " ★" : ""),
+          makeBadge(normal ? "Normal" : "Anormal", normal ? "green" : "red"),
+          answer.probability_abnormal === null ? "—" : Math.round(answer.probability_abnormal * 100) + " %",
+          answer.recall.toFixed(3),
+          answer.precision.toFixed(3),
+          answer.f1.toFixed(3),
+          answer.accuracy.toFixed(3)
+        ];
+        for (const cell of cells) {
+          const td = document.createElement("td");
+          td.append(cell);    // a text or a badge
+          line.append(td);
+        }
+        table.append(line);
+      });
+
+      const wrap = document.createElement("div");
+      wrap.className = "table-wrap";    // on a phone, the table scrolls sideways
+      wrap.append(table);
+
+      const note = document.createElement("div");
+      note.className = "bench-note";
+      note.textContent = "★ = le modèle officiel (le meilleur recall : il rate le moins de cœurs malades). " +
+                         "Le SVM donne une classe, pas une probabilité.";
+
+      panel.append(head, wrap, note);
       result.append(panel);
     }
 
@@ -400,6 +482,12 @@
       if (value === null || value === undefined) return "—";
       if (key === "size_bytes") return formatSize(value) + " (" + value.toLocaleString("fr-FR") + " octets)";
       if (key === "duration_s") return value.toFixed(2) + " s";
+      if (key === "probability_abnormal") return Math.round(value * 100) + " %";
+      if (key === "model_scores") {
+        // the scores of the model on the 3 folds (saved in MLflow)
+        return "recall " + value.recall.toFixed(3) + " · précision " + value.precision.toFixed(3) +
+               " · F1 " + value.f1.toFixed(3) + " · accuracy " + value.accuracy.toFixed(3);
+      }
       if (typeof value === "object") return JSON.stringify(value);
       return value;
     }
