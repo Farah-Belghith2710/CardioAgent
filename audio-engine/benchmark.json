@@ -10,7 +10,7 @@
             "precision": 0.51,
             "f1": 0.655,
             "accuracy": 0.778,
-            "mlflow_run_id": "fb0b22e7b5c34a30b6b7ecde8a45d7dc"
+            "mlflow_run_id": "29eeadfada3741aa8a8da999bdfb46a8"
         },
         {
             "model": "SVM",
@@ -21,7 +21,7 @@
             "precision": 0.521,
             "f1": 0.639,
             "accuracy": 0.791,
-            "mlflow_run_id": "cc8036ecc5614bd49ffef3dfb68c1839"
+            "mlflow_run_id": "d4930604ea684656aa217443dee5bddc"
         },
         {
             "model": "DecisionTree",
@@ -32,7 +32,7 @@
             "precision": 0.559,
             "f1": 0.629,
             "accuracy": 0.81,
-            "mlflow_run_id": "a0b4df459e034c7f826ac3703bc447c3"
+            "mlflow_run_id": "82a03a8fca99451e805a2633f7b89553"
         }
     ]
 }
