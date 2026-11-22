@@ -10,3 +10,6 @@ physionet_dataset/
 # Data files
 *.data
 *.wav
+
+# Claude Code local folder (not part of the project)
+.claude/
