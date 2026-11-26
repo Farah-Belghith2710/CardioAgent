@@ -1,0 +1,340 @@
+{
+  "summary": {
+    "all": {
+      "n_questions": 18,
+      "k": 5,
+      "hit@1": 0.722,
+      "hit@3": 0.944,
+      "hit@5": 0.944,
+      "mrr": 0.815,
+      "keyword_hit": 0.889
+    },
+    "clinique": {
+      "n_questions": 12,
+      "k": 5,
+      "hit@1": 0.917,
+      "hit@3": 1.0,
+      "hit@5": 1.0,
+      "mrr": 0.958,
+      "keyword_hit": 0.917
+    },
+    "technique": {
+      "n_questions": 6,
+      "k": 5,
+      "hit@1": 0.333,
+      "hit@3": 0.833,
+      "hit@5": 0.833,
+      "mrr": 0.528,
+      "keyword_hit": 0.833
+    }
+  },
+  "questions": [
+    {
+      "category": "clinique",
+      "question": "À quoi correspond le premier bruit du cœur B1 ?",
+      "expected": [
+        "Auscultation-cardiaque-normale-4-4.pdf",
+        "UMVF-semiologie-cardiologique-examen-clinique.pdf"
+      ],
+      "retrieved": [
+        "UMVF-semiologie-cardiologique-examen-clinique.pdf p.25",
+        "Auscultation-pathologique-bruits-surajoutes-Chettibi-2023-2024.pdf p.3",
+        "Auscultation-cardiaque-normale-4-4.pdf p.5",
+        "Auscultation-pathologique-bruits-surajoutes-Chettibi-2023-2024.pdf p.2",
+        "UMVF-semiologie-cardiologique-examen-clinique.pdf p.32"
+      ],
+      "rank": 1,
+      "keyword_found": true
+    },
+    {
+      "category": "clinique",
+      "question": "Quels sont les quatre foyers d'auscultation cardiaque ?",
+      "expected": [
+        "Auscultation-cardiaque-normale-4-4.pdf",
+        "UMVF-semiologie-cardiologique-examen-clinique.pdf"
+      ],
+      "retrieved": [
+        "Auscultation-cardiaque-normale-4-4.pdf p.4",
+        "UMVF-semiologie-cardiologique-examen-clinique.pdf p.32",
+        "Auscultation-cardiaque-normale-4-4.pdf p.2",
+        "UMVF-semiologie-cardiologique-examen-clinique.pdf p.25",
+        "Hal open science.pdf p.7"
+      ],
+      "rank": 1,
+      "keyword_found": true
+    },
+    {
+      "category": "clinique",
+      "question": "Où se trouve le foyer d'Erb ?",
+      "expected": [
+        "Auscultation-cardiaque-normale-4-4.pdf"
+      ],
+      "retrieved": [
+        "Auscultation-cardiaque-normale-4-4.pdf p.4",
+        "Hal open science.pdf p.2",
+        "UMVF-semiologie-cardiologique-examen-clinique.pdf p.2",
+        "Auscultation-cardiaque-normale-4-4.pdf p.1",
+        "UMVF-semiologie-cardiologique-examen-clinique.pdf p.24"
+      ],
+      "rank": 1,
+      "keyword_found": true
+    },
+    {
+      "category": "clinique",
+      "question": "Pourquoi ausculter le cœur en décubitus latéral gauche ?",
+      "expected": [
+        "Auscultation-cardiaque-normale-4-4.pdf",
+        "UMVF-semiologie-cardiologique-examen-clinique.pdf"
+      ],
+      "retrieved": [
+        "Auscultation-pathologique-bruits-surajoutes-Chettibi-2023-2024.pdf p.6",
+        "UMVF-semiologie-cardiologique-examen-clinique.pdf p.32",
+        "UMVF-semiologie-cardiologique-examen-clinique.pdf p.21",
+        "Auscultation-cardiaque-normale-4-4.pdf p.4",
+        "UMVF-semiologie-cardiologique-examen-clinique.pdf p.12"
+      ],
+      "rank": 2,
+      "keyword_found": true
+    },
+    {
+      "category": "clinique",
+      "question": "Qu'est-ce que le troisième bruit du cœur B3 et quand est-il normal ?",
+      "expected": [
+        "Auscultation-cardiaque-normale-4-4.pdf",
+        "UMVF-semiologie-cardiologique-examen-clinique.pdf",
+        "Auscultation-pathologique-bruits-surajoutes-Chettibi-2023-2024.pdf"
+      ],
+      "retrieved": [
+        "Auscultation-cardiaque-normale-4-4.pdf p.5",
+        "Auscultation-pathologique-bruits-surajoutes-Chettibi-2023-2024.pdf p.2",
+        "Auscultation-pathologique-bruits-surajoutes-Chettibi-2023-2024.pdf p.3",
+        "UMVF-semiologie-cardiologique-examen-clinique.pdf p.28",
+        "UMVF-semiologie-cardiologique-examen-clinique.pdf p.32"
+      ],
+      "rank": 1,
+      "keyword_found": true
+    },
+    {
+      "category": "clinique",
+      "question": "Qu'est-ce qu'un bruit de galop à l'auscultation cardiaque ?",
+      "expected": [
+        "Auscultation-pathologique-bruits-surajoutes-Chettibi-2023-2024.pdf",
+        "UMVF-semiologie-cardiologique-examen-clinique.pdf"
+      ],
+      "retrieved": [
+        "UMVF-semiologie-cardiologique-examen-clinique.pdf p.32",
+        "Auscultation-pathologique-bruits-surajoutes-Chettibi-2023-2024.pdf p.3",
+        "Auscultation-cardiaque-normale-4-4.pdf p.3",
+        "UMVF-semiologie-cardiologique-examen-clinique.pdf p.22",
+        "UMVF-semiologie-cardiologique-examen-clinique.pdf p.27"
+      ],
+      "rank": 1,
+      "keyword_found": false
+    },
+    {
+      "category": "clinique",
+      "question": "Qu'est-ce que le claquement d'ouverture de la valve mitrale ?",
+      "expected": [
+        "Auscultation-pathologique-bruits-surajoutes-Chettibi-2023-2024.pdf",
+        "UMVF-semiologie-cardiologique-examen-clinique.pdf"
+      ],
+      "retrieved": [
+        "UMVF-semiologie-cardiologique-examen-clinique.pdf p.28",
+        "Auscultation-cardiaque-normale-4-4.pdf p.5",
+        "UMVF-semiologie-cardiologique-examen-clinique.pdf p.27",
+        "Auscultation-cardiaque-normale-4-4.pdf p.5",
+        "Auscultation-pathologique-bruits-surajoutes-Chettibi-2023-2024.pdf p.6"
+      ],
+      "rank": 1,
+      "keyword_found": true
+    },
+    {
+      "category": "clinique",
+      "question": "Comment reconnaître un frottement péricardique à l'auscultation ?",
+      "expected": [
+        "Auscultation-pathologique-bruits-surajoutes-Chettibi-2023-2024.pdf",
+        "UMVF-semiologie-cardiologique-examen-clinique.pdf"
+      ],
+      "retrieved": [
+        "UMVF-semiologie-cardiologique-examen-clinique.pdf p.22",
+        "Auscultation-cardiaque-normale-4-4.pdf p.3",
+        "UMVF-semiologie-cardiologique-examen-clinique.pdf p.36",
+        "UMVF-semiologie-cardiologique-examen-clinique.pdf p.32",
+        "UMVF-semiologie-cardiologique-examen-clinique.pdf p.25"
+      ],
+      "rank": 1,
+      "keyword_found": true
+    },
+    {
+      "category": "clinique",
+      "question": "Quelle est la différence entre la membrane et le cône du stéthoscope ?",
+      "expected": [
+        "Auscultation-cardiaque-normale-4-4.pdf",
+        "UMVF-semiologie-cardiologique-examen-clinique.pdf"
+      ],
+      "retrieved": [
+        "UMVF-semiologie-cardiologique-examen-clinique.pdf p.23",
+        "UMVF-semiologie-cardiologique-examen-clinique.pdf p.29",
+        "Auscultation-cardiaque-normale-4-4.pdf p.3",
+        "UMVF-semiologie-cardiologique-examen-clinique.pdf p.27",
+        "UMVF-semiologie-cardiologique-examen-clinique.pdf p.24"
+      ],
+      "rank": 1,
+      "keyword_found": true
+    },
+    {
+      "category": "clinique",
+      "question": "Qu'est-ce qu'un dédoublement du deuxième bruit du cœur B2 ?",
+      "expected": [
+        "Auscultation-cardiaque-normale-4-4.pdf",
+        "UMVF-semiologie-cardiologique-examen-clinique.pdf",
+        "Auscultation-pathologique-bruits-surajoutes-Chettibi-2023-2024.pdf"
+      ],
+      "retrieved": [
+        "UMVF-semiologie-cardiologique-examen-clinique.pdf p.25",
+        "Auscultation-pathologique-bruits-surajoutes-Chettibi-2023-2024.pdf p.3",
+        "UMVF-semiologie-cardiologique-examen-clinique.pdf p.27",
+        "Auscultation-pathologique-bruits-surajoutes-Chettibi-2023-2024.pdf p.4",
+        "Auscultation-cardiaque-normale-4-4.pdf p.5"
+      ],
+      "rank": 1,
+      "keyword_found": true
+    },
+    {
+      "category": "clinique",
+      "question": "Quelles sont les recommandations de l'ESC pour l'évaluation cardiovasculaire avant une chirurgie non cardiaque ?",
+      "expected": [
+        "Hal open science.pdf"
+      ],
+      "retrieved": [
+        "Hal open science.pdf p.13",
+        "Hal open science.pdf p.4",
+        "UMVF-semiologie-cardiologique-examen-clinique.pdf p.4",
+        "Hal open science.pdf p.7",
+        "Hal open science.pdf p.2"
+      ],
+      "rank": 1,
+      "keyword_found": true
+    },
+    {
+      "category": "clinique",
+      "question": "Quels examens complémentaires demander après une auscultation cardiaque anormale ?",
+      "expected": [
+        "Auscultation-cardiaque-normale-4-4.pdf",
+        "UMVF-semiologie-cardiologique-examen-clinique.pdf",
+        "Hal open science.pdf"
+      ],
+      "retrieved": [
+        "UMVF-semiologie-cardiologique-examen-clinique.pdf p.4",
+        "Hal open science.pdf p.7",
+        "Auscultation-cardiaque-normale-4-4.pdf p.2",
+        "Hal open science.pdf p.3",
+        "Hal open science.pdf p.7"
+      ],
+      "rank": 1,
+      "keyword_found": true
+    },
+    {
+      "category": "technique",
+      "question": "Combien d'enregistrements contient la base de données du challenge PhysioNet/CinC 2016 ?",
+      "expected": [
+        "challenge2016.pdf"
+      ],
+      "retrieved": [
+        "challenge2016.pdf p.4",
+        "grzegorczyk.pdf p.1",
+        "challenge2016.pdf p.1",
+        "potes.pdf p.1",
+        "tschannen.pdf p.1"
+      ],
+      "rank": 1,
+      "keyword_found": true
+    },
+    {
+      "category": "technique",
+      "question": "Comment le score du challenge PhysioNet 2016 est-il calculé avec la sensibilité et la spécificité ?",
+      "expected": [
+        "challenge2016.pdf"
+      ],
+      "retrieved": [
+        "grzegorczyk.pdf p.1",
+        "rubin.pdf p.4",
+        "challenge2016.pdf p.1",
+        "langley.pdf p.2",
+        "tschannen.pdf p.1"
+      ],
+      "rank": 3,
+      "keyword_found": true
+    },
+    {
+      "category": "technique",
+      "question": "Réseau de neurones convolutif appliqué aux coefficients MFCC des sons cardiaques",
+      "expected": [
+        "rubin.pdf",
+        "nilanon.pdf",
+        "potes.pdf"
+      ],
+      "retrieved": [
+        "goda.pdf p.1",
+        "zabihi.pdf p.4",
+        "tschannen.pdf p.2",
+        "grzegorczyk.pdf p.1",
+        "langley.pdf p.1"
+      ],
+      "rank": 0,
+      "keyword_found": false
+    },
+    {
+      "category": "technique",
+      "question": "Classification des sons cardiaques par entropie en ondelettes sans segmentation",
+      "expected": [
+        "langley.pdf"
+      ],
+      "retrieved": [
+        "rubin.pdf p.1",
+        "langley.pdf p.1",
+        "homsi.pdf p.1",
+        "goda.pdf p.1",
+        "goda.pdf p.4"
+      ],
+      "rank": 2,
+      "keyword_found": true
+    },
+    {
+      "category": "technique",
+      "question": "Quelles caractéristiques temps-fréquence ont été extraites pour détecter les sons cardiaques anormaux ?",
+      "expected": [
+        "potes.pdf",
+        "homsi.pdf",
+        "goda.pdf",
+        "vernekar.pdf",
+        "singhmiller.pdf"
+      ],
+      "retrieved": [
+        "singhmiller.pdf p.1",
+        "langley.pdf p.1",
+        "singhmiller.pdf p.1",
+        "langley.pdf p.1",
+        "goda.pdf p.1"
+      ],
+      "rank": 1,
+      "keyword_found": true
+    },
+    {
+      "category": "technique",
+      "question": "Détection de la qualité du signal PCG avec un ensemble de réseaux de neurones",
+      "expected": [
+        "zabihi.pdf"
+      ],
+      "retrieved": [
+        "grzegorczyk.pdf p.2",
+        "grzegorczyk.pdf p.3",
+        "zabihi.pdf p.1",
+        "grzegorczyk.pdf p.4",
+        "zabihi.pdf p.4"
+      ],
+      "rank": 3,
+      "keyword_found": true
+    }
+  ]
+}
