@@ -1,0 +1,5 @@
+# Files used inside the Linux containers must keep Linux line endings (LF), even on Windows
+*.sh text eol=lf
+*.Dockerfile text eol=lf
+Modelfile text eol=lf
+docker-compose*.yml text eol=lf

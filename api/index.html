@@ -151,7 +151,7 @@
     /* ---------- the result ---------- */
     #result { min-width: 0; }         /* min-width: 0 = the table can scroll instead of making the page wider */
     #result:empty::before {           /* before the first analysis: a message in the empty right column */
-      content: "Le résultat de l'analyse s'affichera ici : la réponse du modèle officiel, puis le benchmark des modèles.";
+      content: "Le résultat de l'analyse s'affichera ici : la réponse du modèle officiel, le benchmark des 5 modèles, puis le rapport des agents IA.";
       display: flex; align-items: center; justify-content: center;
       min-height: 360px;
       padding: 24px;
@@ -214,6 +214,14 @@
     .bench th { color: var(--muted); font-weight: 500; font-size: 12.5px; }
     .bench tr.best td { background: rgba(10, 77, 255, 0.08); }    /* the best model = the official answer */
     .bench-note { padding: 10px 18px 14px; color: var(--muted); font-size: 12.5px; line-height: 1.5; }
+
+    /* ---------- the report of the AI agents (Analyste -> Cardiologue RAG -> Auditeur) ---------- */
+    .report-panel { margin-top: 14px; }
+    .report-panel .badges { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+    .report-panel dd { line-height: 1.55; }
+    .report-panel ul { margin: 0; padding-left: 18px; }
+    .report-panel li { margin-bottom: 4px; }
+    .report-panel .disclaimer { color: var(--muted); font-style: italic; }
 
     /* ---------- footer ---------- */
     footer {
@@ -297,14 +305,19 @@
       message: "Message",
       prediction: "Prédiction",
       probability_abnormal: "Probabilité « anormal »",
-      model: "Modèle (meilleur recall)",
+      model: "Modèle officiel (meilleur recall)",
       features: "Entrée du modèle",
       model_scores: "Scores du modèle (3 folds)",
       warning: "Attention"
     };
 
     // nicer names for the models of the benchmark
-    const MODEL_NAMES = { DecisionTree: "Decision Tree", SVM: "SVM", CNN: "CNN" };
+    const MODEL_NAMES = {
+      DecisionTree: "Decision Tree", SVM: "SVM", CNN: "CNN",
+      ResNet50: "ResNet50 (transfer learning)", TransformerCNN: "Transformer-CNN"
+    };
+    // the risk level of the report: green = faible, blue = modéré, red = élevé
+    const RISK_COLORS = { "faible": "green", "modéré": "blue", "élevé": "red" };
 
     const fileInput = document.getElementById("file");
     const drop = document.getElementById("drop");
@@ -366,7 +379,11 @@
         const data = await response.json();
 
         if (response.ok) {
-          showResult(data);
+          // with the agents: {"audio": ..., "report": ...} | without the agents: the audio result itself
+          const audio = data.audio || data;
+          showResult(audio);
+          if (data.report) showReport(data.report);
+          if (data.report_error) showError("Agents IA", data.report_error, false);
         } else {
           // error from the gateway (400: not a .wav, 503: a service is down)
           const detail = typeof data.detail === "string" ? data.detail : JSON.stringify(data.detail);
@@ -431,12 +448,12 @@
       const title = document.createElement("span");
       title.className = "panel-title";
       title.textContent = "Benchmark des modèles";
-      head.append(title, makeBadge("Scores MLflow · 3 folds", "blue"));
+      head.append(title, makeBadge("Scores MLflow · validation + test", "blue"));
 
       const table = document.createElement("table");
       table.className = "bench";
       const header = document.createElement("tr");
-      for (const name of ["Modèle", "Ce wav", "Proba.", "Recall", "Précision", "F1", "Accuracy"]) {
+      for (const name of ["Modèle", "Ce wav", "Proba.", "Recall val.", "F1 val.", "Recall test", "F1 test"]) {
         const th = document.createElement("th");
         th.textContent = name;
         header.append(th);
@@ -451,10 +468,10 @@
           (MODEL_NAMES[answer.model] || answer.model) + (i === 0 ? " ★" : ""),
           makeBadge(normal ? "Normal" : "Anormal", normal ? "green" : "red"),
           answer.probability_abnormal === null ? "—" : Math.round(answer.probability_abnormal * 100) + " %",
-          answer.recall.toFixed(3),
-          answer.precision.toFixed(3),
-          answer.f1.toFixed(3),
-          answer.accuracy.toFixed(3)
+          formatScore(answer.recall),
+          formatScore(answer.f1),
+          formatScore(answer.test_recall),
+          formatScore(answer.test_f1)
         ];
         for (const cell of cells) {
           const td = document.createElement("td");
@@ -470,15 +487,52 @@
 
       const note = document.createElement("div");
       note.className = "bench-note";
-      note.textContent = "★ = le modèle officiel (le meilleur recall : il rate le moins de cœurs malades). " +
+      note.textContent = "★ = le modèle officiel (le meilleur recall de validation : il rate le moins de cœurs malades). " +
+                         "Validation = moyenne des 3 folds, test = 20 % des wavs jamais vus. " +
                          "Le SVM donne une classe, pas une probabilité.";
 
       panel.append(head, wrap, note);
       result.append(panel);
     }
 
-    function showError(title, text) {
-      result.innerHTML = "";
+    // ---------- 6. the report of the AI agents: Analyste -> Cardiologue (RAG) -> Auditeur ----------
+    function showReport(report) {
+      const panel = document.createElement("div");
+      panel.className = "panel report-panel";
+
+      const head = document.createElement("div");
+      head.className = "panel-head";
+      const title = document.createElement("span");
+      title.className = "panel-title";
+      title.textContent = "Rapport des agents IA";
+      const badges = document.createElement("span");
+      badges.className = "badges";
+      badges.append(makeBadge("Risque " + report.risk_level, RISK_COLORS[report.risk_level] || "blue"));
+      if (report.audit.approved) {
+        badges.append(makeBadge("Validé par l'Auditeur", "green"));
+      } else {
+        badges.append(makeBadge("Rapport de secours", "red"));
+      }
+      head.append(title, badges);
+
+      const rows = document.createElement("dl");
+      rows.append(makeRow("Résumé", report.summary));
+      rows.append(makeRow("Explication", report.clinical_explanation));
+      rows.append(makeRow("Recommandations", makeList(report.recommendations)));
+      const sources = report.sources.map(source => source.title + " (p. " + source.page + ")");
+      rows.append(makeRow("Sources (RAG)", sources.length ? makeList(sources) : "—"));
+      if (report.audit.issues.length) rows.append(makeRow("Audit", makeList(report.audit.issues)));
+      const disclaimer = document.createElement("span");
+      disclaimer.className = "disclaimer";
+      disclaimer.textContent = report.disclaimer;
+      rows.append(makeRow("Avertissement", disclaimer));
+
+      panel.append(head, rows);
+      result.append(panel);
+    }
+
+    function showError(title, text, clear = true) {
+      if (clear) result.innerHTML = "";
       const box = document.createElement("div");
       box.className = "error";
       const strong = document.createElement("strong");
@@ -495,10 +549,37 @@
       return badge;
     }
 
+    function makeRow(label, content) {
+      // 1 line of a panel: the name on the left, a text or an element on the right
+      const row = document.createElement("div");
+      row.className = "row";
+      const name = document.createElement("dt");
+      name.textContent = label;
+      const value = document.createElement("dd");
+      value.append(content);
+      row.append(name, value);
+      return row;
+    }
+
+    function makeList(items) {
+      const list = document.createElement("ul");
+      for (const item of items) {
+        const li = document.createElement("li");
+        li.textContent = item;
+        list.append(li);
+      }
+      return list;
+    }
+
+    function formatScore(value) {
+      return (value === null || value === undefined) ? "—" : value.toFixed(3);
+    }
+
     function setLoading(loading) {
       button.disabled = loading;
       button.classList.toggle("loading", loading);
-      document.getElementById("btn-text").textContent = loading ? "Analyse en cours…" : "Analyser";
+      // the agents (LLM) can take 1 to 3 minutes on a computer without GPU
+      document.getElementById("btn-text").textContent = loading ? "Analyse en cours… (agents IA : 1 à 3 min)" : "Analyser";
     }
 
     function formatValue(key, value) {

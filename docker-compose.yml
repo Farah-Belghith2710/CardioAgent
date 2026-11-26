@@ -1,0 +1,155 @@
+# CardioAgent-Ops: the 6 micro-services on the Docker network "cardio-net"
+#
+#   docker compose up --build -d                    start the whole platform (http://localhost:8000)
+#   docker compose run --rm agent-orchestrator python -m rag_engine.ingest      index the RAG documents (once)
+#   docker compose ps                               see the state (and the healthchecks) of the 6 services
+#
+# client --(.wav)--> api-gateway:8000 --> audio-engine:8001 (5 ONNX models, logs in MLflow)
+#                         '--> agent-orchestrator:8002 --> vector-db:6333 (RAG) + llm-server:11434 (LLM) + MLflow
+# Settings in a file ".env" next to this file (optional), e.g.  LLM_MODEL=qwen2.5:7b-instruct
+name: cardioagent
+
+services:
+  # ---------- Service 1: the LLM (Ollama), local and quantized (GGUF 4-bit) ----------
+  llm-server:
+    build:
+      context: .
+      dockerfile: docker/llm-server.Dockerfile
+    environment:
+      LLM_MODEL: ${LLM_MODEL:-qwen2.5:3b-instruct}    # cardio-llm once the fine-tuned GGUF is in llm_server/models/
+    volumes:
+      - ollama-data:/root/.ollama                      # the downloaded / created models (kept between restarts)
+      - ./llm_server/models:/models:ro                 # the fine-tuned GGUF (git-ignored, ~4.7 GB)
+    ports:
+      - "11435:11434"                                  # 11434 on the PC is already used by a native Ollama
+    healthcheck:                                       # healthy = the model of the agents is ready
+      test: ["CMD-SHELL", "ollama show \"$$LLM_MODEL\" > /dev/null 2>&1"]
+      interval: 15s
+      timeout: 10s
+      retries: 240                                     # the first download of the model can take a while
+      start_period: 30s
+    networks: [cardio-net]
+    restart: unless-stopped
+
+  # ---------- Service 2: the vector database of the RAG (Qdrant) ----------
+  vector-db:
+    build:
+      context: .
+      dockerfile: docker/vector-db.Dockerfile
+    volumes:
+      - qdrant-data:/qdrant/storage
+    ports:
+      - "6333:6333"
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c ':> /dev/tcp/127.0.0.1/6333' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    networks: [cardio-net]
+    restart: unless-stopped
+
+  # ---------- Service 3: the audio engine (5 models in ONNX, benchmark, inference logs) ----------
+  audio-engine:
+    build:
+      context: .
+      dockerfile: docker/audio-engine.Dockerfile
+    environment:
+      MLFLOW_TRACKING_URI: http://mlflow-server:5000
+    ports:
+      - "8001:8001"
+    depends_on:
+      mlflow-server:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    networks: [cardio-net]
+    restart: unless-stopped
+
+  # ---------- Service 4: the 3 agents (LangGraph) + the RAG + the Pydantic guardrails ----------
+  agent-orchestrator:
+    build:
+      context: .
+      dockerfile: docker/agent-orchestrator.Dockerfile
+    environment:
+      QDRANT_URL: http://vector-db:6333
+      LLM_URL: http://llm-server:11434
+      LLM_MODEL: ${LLM_MODEL:-qwen2.5:3b-instruct}
+      LLM_TIMEOUT: "600"
+      MLFLOW_TRACKING_URI: http://mlflow-server:5000
+      RAG_DOCS_FOLDER: /docs
+    volumes:
+      - ./article for rag:/docs:ro                    # the RAG documents (read only), for rag_engine.ingest
+    ports:
+      - "8002:8002"
+    depends_on:
+      vector-db:
+        condition: service_healthy
+      llm-server:
+        condition: service_healthy
+      mlflow-server:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8002/health')"]
+      interval: 10s
+      timeout: 10s
+      retries: 12
+      start_period: 30s
+    networks: [cardio-net]
+    restart: unless-stopped
+
+  # ---------- Service 5: the API gateway (the only entry point: /analyze_pcg and the web page) ----------
+  api-gateway:
+    build:
+      context: .
+      dockerfile: docker/api-gateway.Dockerfile
+    environment:
+      AUDIO_ENGINE_URL: http://audio-engine:8001/predict
+      ORCHESTRATOR_URL: http://agent-orchestrator:8002/orchestrate
+      ORCHESTRATOR_TIMEOUT: "900"
+    ports:
+      - "8000:8000"
+    depends_on:
+      audio-engine:
+        condition: service_healthy
+      agent-orchestrator:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    networks: [cardio-net]
+    restart: unless-stopped
+
+  # ---------- Service 6: MLflow (tracking of the experiments, Model Registry, inference logs) ----------
+  mlflow-server:
+    build:
+      context: .
+      dockerfile: docker/mlflow-server.Dockerfile
+    volumes:
+      - mlflow-data:/mlflow                            # all the runs since the beginning of the project
+    ports:
+      - "5000:5000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    networks: [cardio-net]
+    restart: unless-stopped
+
+networks:
+  cardio-net:
+
+volumes:
+  mlflow-data:
+    external: true          # the volume that already holds all the MLflow runs (docker volume create mlflow-data)
+  qdrant-data:
+    name: qdrant-data
+  ollama-data:
+    name: ollama-data

@@ -1,23 +1,23 @@
 # Service 3 : audio-engine (ONNX Runtime + Librosa)
+# Multi-stage build: stage 1 installs the Python libraries, stage 2 is a clean image that only runs the engine.
+# Build context = the repo root (docker-compose.yml): docker build -f docker/audio-engine.Dockerfile .
 
-# 1. start from an image that already contains Python
+# ---------- stage 1 (builder): install the libraries in /install ----------
+FROM python:3.12-slim AS builder
+WORKDIR /build
+# the same versions of numpy / librosa / soundfile / soxr as in the notebooks -> the same spectrograms
+COPY audio_engine/requirements.txt .
+RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
+
+# ---------- stage 2 (runtime): only the libraries, our code and the models ----------
 FROM python:3.12-slim
-
-# 2. inside the container, we work in the /app folder
 WORKDIR /app
+COPY --from=builder /install /usr/local
+# our code, benchmark.json (the scores of the models), magma_lut.npy (the colours of the ResNet50 image)
+COPY audio_engine/main.py audio_engine/benchmark.json audio_engine/magma_lut.npy ./
+# the models exported to ONNX by the notebook 05 (resnet50.onnx is optional: the engine skips a missing file)
+COPY audio_engine/*.onnx ./
 
-# 3. install the Python libraries (librosa, onnxruntime, fastapi, ...)
-#    the same versions of numpy / librosa / soundfile / soxr as in the notebooks -> the same spectrograms
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-
-# 4. copy our code, the models (ONNX files made by the notebook 05) and benchmark.json (their scores)
-COPY main.py .
-COPY benchmark.json .
-COPY *.onnx .
-
-# 5. the API listens on port 8001 (8000 is already used by the api-gateway)
+# the API listens on port 8001 (8000 is the api-gateway)
 EXPOSE 8001
-
-# 6. command run when the container starts: uvicorn serves the FastAPI app "app" from main.py
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8001"]

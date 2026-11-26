@@ -1,0 +1,26 @@
+# Files Docker must NOT send to the builds (the build context is the repo root): they are big or not needed
+venv/
+.git/
+.claude/
+.github/
+ourdataset/
+ourdataset_correct/
+pascal_dataset/
+physionet_dataset/
+*.data
+*.wav
+notebooks/
+courses/
+models plots/
+article for rag/
+splits/
+llm_server/models/
+llm_finetuning/outputs/
+mlruns/
+tests/
+docs/
+**/__pycache__/
+**/.ipynb_checkpoints/
+*.pdf
+*.gguf
+.env

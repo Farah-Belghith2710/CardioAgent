@@ -2,8 +2,8 @@
 Service 5 : api-gateway (FastAPI + Uvicorn)
 
 Point d'entrée unique de la plateforme :
-  client --(.wav)--> POST /analyze_pcg --> moteur audio --> orchestrateur
-  client <--(résultat)-------------------------------------------'
+  client --(.wav)--> POST /analyze_pcg --> moteur audio (Service 3) --> orchestrateur des agents (Service 4)
+  client <--(résultat audio + rapport des agents)------------------------'
 """
 import io
 import os
@@ -13,11 +13,15 @@ import requests
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 
-# Addresses of the 2 other services. We give them when we start the container:
-#   docker run -e AUDIO_ENGINE_URL=http://... -e ORCHESTRATOR_URL=http://... ...
+# Addresses of the 2 other services. We give them when we start the container (docker-compose.yml):
+#   AUDIO_ENGINE_URL=http://audio-engine:8001/predict  ORCHESTRATOR_URL=http://agent-orchestrator:8002/orchestrate
 # Empty = that service is not ready yet.
 AUDIO_ENGINE_URL = os.getenv("AUDIO_ENGINE_URL", "")
 ORCHESTRATOR_URL = os.getenv("ORCHESTRATOR_URL", "")
+AUDIO_ENGINE_TIMEOUT = 60                                              # seconds
+ORCHESTRATOR_TIMEOUT = float(os.getenv("ORCHESTRATOR_TIMEOUT", "900"))  # the LLM on a CPU can take minutes
+
+HERE = os.path.dirname(os.path.abspath(__file__))
 
 
 def get_duration(audio):
@@ -29,10 +33,10 @@ def get_duration(audio):
         return None    # not a readable wav
 
 
-def send_to_service(url, files=None, json=None):
+def send_to_service(url, files=None, json=None, timeout=60):
     # send a POST request to another service and return its JSON answer
     try:
-        response = requests.post(url, files=files, json=json, timeout=60)
+        response = requests.post(url, files=files, json=json, timeout=timeout)
     except requests.RequestException as error:
         # the service is down -> clear message for the client
         raise HTTPException(status_code=503, detail="Service injoignable : " + url + " (" + str(error) + ")")
@@ -53,13 +57,13 @@ app = FastAPI(title="api-gateway", description="Service 5 : point d'entrée uniq
 @app.get("/")
 def home():
     # the home page = the HTML page in index.html (the /docs test page still exists)
-    return FileResponse("index.html")
+    return FileResponse(os.path.join(HERE, "index.html"))
 
 
 @app.get("/health")
 def health():
-    # quick check that the container is running
-    return {"status": "ok"}
+    # quick check that the container is running, and which services it knows
+    return {"status": "ok", "audio_engine": AUDIO_ENGINE_URL != "", "orchestrator": ORCHESTRATOR_URL != ""}
 
 
 @app.post("/analyze_pcg")
@@ -79,9 +83,15 @@ def analyze_pcg(file: UploadFile = File(...)):
         }
 
     # 3. send the .wav to the audio engine
-    audio_result = send_to_service(AUDIO_ENGINE_URL, files={"file": (file.filename, audio, "audio/wav")})
+    audio_result = send_to_service(AUDIO_ENGINE_URL, files={"file": (file.filename, audio, "audio/wav")},
+                                   timeout=AUDIO_ENGINE_TIMEOUT)
 
-    # 4. send the audio engine's result to the orchestrator (if it's ready)
+    # 4. send the audio engine's result to the orchestrator of the agents (if it's ready)
     if ORCHESTRATOR_URL == "":
         return audio_result
-    return send_to_service(ORCHESTRATOR_URL, json=audio_result)
+    try:
+        return send_to_service(ORCHESTRATOR_URL, json=audio_result, timeout=ORCHESTRATOR_TIMEOUT)
+    except HTTPException as error:
+        # the agents are down: the client still gets the result of the audio engine (degraded mode)
+        return {"audio": audio_result, "report": None,
+                "report_error": "Rapport des agents indisponible : " + str(error.detail)}
