@@ -13,3 +13,28 @@ physionet_dataset/
 
 # Claude Code local folder (not part of the project)
 .claude/
+
+# RAG documents added later (copyright: keep them local, see article for rag/SOURCES.md)
+article for rag/*.pdf
+
+# Instructions for Claude Code (not part of the project)
+PROMPT_FOR_CLAUDE_CODE.md
+
+# Python / notebook / test caches
+__pycache__/
+.ipynb_checkpoints/
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# MLflow local runs (the real runs are in the mlflow-server container, volume mlflow-data)
+mlruns/
+
+# LLM files: too big for git (the GGUF is ~4.7 GB, the LoRA adapter ~80 MB)
+*.gguf
+llm_finetuning/outputs/
+llm_server/models/
+
+# Secrets and local settings
+.env
