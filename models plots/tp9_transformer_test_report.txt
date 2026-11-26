@@ -1,0 +1,10 @@
+Transformer-CNN - test set (737 wavs never seen)
+
+              precision    recall  f1-score   support
+
+      normal       0.95      0.81      0.88       572
+    abnormal       0.57      0.86      0.68       165
+
+    accuracy                           0.82       737
+   macro avg       0.76      0.84      0.78       737
+weighted avg       0.87      0.82      0.83       737
