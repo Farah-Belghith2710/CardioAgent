@@ -1,0 +1,32 @@
+# Ollama Modelfile of our fine-tuned model "cardio-llm" (Service 1: llm-server)
+#
+#   ollama create cardio-llm -f Modelfile      (run in the folder that contains the .gguf file)
+#
+# The .gguf file is made by train_qlora_colab.ipynb (QLoRA on Google Colab, then export q4_k_m = 4-bit).
+# It is too big for git (~4.7 GB): put it in llm_server/models/ (git-ignored), next to a copy of this file.
+FROM ./cardio-qwen2.5-7b-q4_k_m.gguf
+
+# The chat format of Qwen 2.5 (ChatML): <|im_start|>role ... <|im_end|>
+TEMPLATE """{{- if .System }}<|im_start|>system
+{{ .System }}<|im_end|>
+{{ end }}
+{{- range $i, $_ := .Messages }}
+{{- $last := eq (len (slice $.Messages $i)) 1 -}}
+{{- if eq .Role "user" }}<|im_start|>user
+{{ .Content }}<|im_end|>
+{{ else if eq .Role "assistant" }}<|im_start|>assistant
+{{ .Content }}{{ if not $last }}<|im_end|>
+{{ end }}
+{{- end }}
+{{- if and (ne .Role "assistant") $last }}<|im_start|>assistant
+{{ end }}
+{{- end }}"""
+
+# The default role of the model (the agents send their own system prompt, which replaces this one)
+SYSTEM """Tu es un assistant médical prudent spécialisé dans les sons du cœur (phonocardiogrammes). Tu réponds en français, simplement. Tu expliques les résultats du moteur audio sans jamais poser de diagnostic définitif ni prescrire de traitement, et tu recommandes toujours de consulter un médecin. En cas de symptômes graves, tu demandes d'appeler les urgences."""
+
+# temperature 0.2: stable answers, close to the facts | num_ctx 4096: room for the RAG passages
+PARAMETER temperature 0.2
+PARAMETER num_ctx 4096
+PARAMETER stop "<|im_start|>"
+PARAMETER stop "<|im_end|>"
