@@ -131,6 +131,16 @@ def test_predict_refuses_a_file_that_is_not_audio():
     assert response.status_code == 400
 
 
+def test_run_ensemble_is_the_mean_of_its_members():
+    m = {"model": "Ensemble", "members": ["CNN", "ResNet50"], "recall": 0.9, "precision": 0.6, "f1": 0.7,
+         "accuracy": 0.8}
+    answers = {"CNN": {"probability_abnormal": 0.8}, "ResNet50": {"probability_abnormal": 0.3}}
+    answer = engine.run_ensemble(m, answers)
+    assert answer["probability_abnormal"] == 0.55 and answer["prediction"] == "abnormal"
+    answers["CNN"]["probability_abnormal"] = 0.6
+    assert engine.run_ensemble(m, answers)["prediction"] == "normal"         # (0.6 + 0.3) / 2 = 0.45
+
+
 # ==================== train_all.py: runs the training notebooks in the right order ====================
 def test_train_all_runs_the_notebooks_in_order(monkeypatch):
     import os
@@ -141,7 +151,8 @@ def test_train_all_runs_the_notebooks_in_order(monkeypatch):
     runpy.run_path(os.path.join(os.path.dirname(engine.HERE), "audio_engine", "train_all.py"), run_name="__main__")
     notebooks = [os.path.basename(command[-1]) for command in commands]
     assert notebooks == ["02_Tp3_svm.ipynb", "03_Tp4_decision_tree.ipynb", "04_Tp7_cnn.ipynb",
-                         "06_Tp8_transfer_learning.ipynb", "07_transformer_cnn.ipynb", "05_best_model_onnx.ipynb"]
+                         "06_Tp8_transfer_learning.ipynb", "07_transformer_cnn.ipynb", "08_ensemble.ipynb",
+                         "05_best_model_onnx.ipynb"]
     assert "--execute" in commands[0] and "--inplace" in commands[0]
 
 

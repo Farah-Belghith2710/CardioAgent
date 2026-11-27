@@ -12,8 +12,8 @@ import os
 import requests
 
 LLM_URL = os.getenv("LLM_URL", "http://localhost:11434")              # Ollama
-LLM_MODEL = os.getenv("LLM_MODEL", "qwen2.5:7b-instruct")             # "cardio-llm" once the fine-tuned GGUF is there
-LLM_TIMEOUT = float(os.getenv("LLM_TIMEOUT", "600"))                  # seconds: a 7B model on a CPU can be slow
+LLM_MODEL = os.getenv("LLM_MODEL", "qwen2.5:3b-instruct")             # "cardio-llm" once the fine-tuned GGUF is there
+LLM_TIMEOUT = float(os.getenv("LLM_TIMEOUT", "600"))                  # seconds: an LLM on a CPU can be slow
 
 
 def chat_json(system_prompt, user_prompt):

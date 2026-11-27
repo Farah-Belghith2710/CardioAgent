@@ -139,6 +139,8 @@ def main():
     if client.collection_exists(COLLECTION):
         client.delete_collection(COLLECTION)
     client.create_collection(COLLECTION, vectors_config=VectorParams(size=len(vectors[0]), distance=Distance.COSINE))
+    # the creation can take ~20 s on a busy PC and Qdrant closes the idle connections after 5 s -> a new connection
+    client = QdrantClient(url=QDRANT_URL, timeout=120)
     client.create_payload_index(COLLECTION, field_name="category", field_schema="keyword")    # fast filter
 
     points = []

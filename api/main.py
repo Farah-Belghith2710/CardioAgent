@@ -18,7 +18,7 @@ from fastapi.responses import FileResponse
 # Empty = that service is not ready yet.
 AUDIO_ENGINE_URL = os.getenv("AUDIO_ENGINE_URL", "")
 ORCHESTRATOR_URL = os.getenv("ORCHESTRATOR_URL", "")
-AUDIO_ENGINE_TIMEOUT = 60                                              # seconds
+AUDIO_ENGINE_TIMEOUT = 180                                             # seconds (6 models on a busy CPU)
 ORCHESTRATOR_TIMEOUT = float(os.getenv("ORCHESTRATOR_TIMEOUT", "900"))  # the LLM on a CPU can take minutes
 
 HERE = os.path.dirname(os.path.abspath(__file__))

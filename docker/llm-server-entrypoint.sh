@@ -23,6 +23,11 @@ if ! ollama show "$LLM_MODEL" > /dev/null 2>&1; then
     echo "Downloading the model $LLM_MODEL (only the first time)"
     ollama pull "$LLM_MODEL"
 fi
+
+# load the model in memory NOW, once (a tiny question); OLLAMA_KEEP_ALIVE=-1 (docker-compose.yml) keeps it there:
+# on our PC, reading the model file from the Docker disk takes minutes, the agents must not wait for it each time
+echo "Loading $LLM_MODEL in memory (the first time can take several minutes)"
+ollama run "$LLM_MODEL" "Réponds seulement: OK" > /dev/null
 echo "llm-server ready with the model $LLM_MODEL"
 
 # keep the container running as long as the Ollama server runs

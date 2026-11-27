@@ -2,9 +2,9 @@ ResNet50 (transfer learning) - test set (737 wavs never seen)
 
               precision    recall  f1-score   support
 
-      normal       0.94      0.95      0.94       572
-    abnormal       0.82      0.78      0.80       165
+      normal       0.94      0.91      0.93       572
+    abnormal       0.72      0.81      0.76       165
 
-    accuracy                           0.91       737
-   macro avg       0.88      0.86      0.87       737
-weighted avg       0.91      0.91      0.91       737
+    accuracy                           0.89       737
+   macro avg       0.83      0.86      0.84       737
+weighted avg       0.89      0.89      0.89       737

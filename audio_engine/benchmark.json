@@ -17,7 +17,7 @@
             "test_f1": 0.661,
             "test_accuracy": 0.791,
             "test_auc": 0.932,
-            "mlflow_run_id": "44cc6d79a0794c689a499be46bb83bd7"
+            "mlflow_run_id": "d4e6661bed084af79cfee5d2f1f791cd"
         },
         {
             "model": "SVM",
@@ -34,7 +34,47 @@
             "test_f1": 0.728,
             "test_accuracy": 0.847,
             "test_auc": 0.944,
-            "mlflow_run_id": "e8e7838ab52e4134864c7980c9dd1819"
+            "mlflow_run_id": "1dacb5eb4b8a4746b09e6d438e2a99e4"
+        },
+        {
+            "model": "Ensemble",
+            "file": null,
+            "members": [
+                "CNN",
+                "ResNet50",
+                "TransformerCNN",
+                "DecisionTree"
+            ],
+            "features": "soft vote: mean of the probabilities of CNN + ResNet50 + TransformerCNN + DecisionTree",
+            "seconds": "5",
+            "recall": 0.858,
+            "precision": 0.619,
+            "f1": 0.714,
+            "accuracy": 0.843,
+            "auc": 0.941,
+            "test_recall": 0.933,
+            "test_precision": 0.595,
+            "test_f1": 0.726,
+            "test_accuracy": 0.843,
+            "test_auc": 0.954,
+            "mlflow_run_id": "7344e5434b734a13aa009d8488552e94"
+        },
+        {
+            "model": "DecisionTree",
+            "file": "decisiontree.onnx",
+            "features": "extended features (72)",
+            "seconds": "whole wav",
+            "recall": 0.82,
+            "precision": 0.55,
+            "f1": 0.657,
+            "accuracy": 0.807,
+            "auc": 0.864,
+            "test_recall": 0.927,
+            "test_precision": 0.492,
+            "test_f1": 0.643,
+            "test_accuracy": 0.769,
+            "test_auc": 0.891,
+            "mlflow_run_id": "4e923eb6034d4398a240b628681dd110"
         },
         {
             "model": "TransformerCNN",
@@ -51,41 +91,24 @@
             "test_f1": 0.684,
             "test_accuracy": 0.822,
             "test_auc": 0.933,
-            "mlflow_run_id": "0e538847120c43ae919994c73ae8ba2c"
+            "mlflow_run_id": "da3bc84996f54efd8e61960772119cbb"
         },
         {
             "model": "ResNet50",
             "file": "resnet50.onnx",
             "features": "mel spectrogram 40 x 157 -> magma image 224 x 224 x 3",
             "seconds": "5",
-            "recall": 0.789,
-            "precision": 0.713,
-            "f1": 0.748,
-            "accuracy": 0.881,
-            "auc": 0.943,
-            "test_recall": 0.776,
-            "test_precision": 0.821,
-            "test_f1": 0.798,
-            "test_accuracy": 0.912,
-            "test_auc": 0.961,
-            "mlflow_run_id": "753107c64f94406ea5dc03017fd12c37"
-        },
-        {
-            "model": "DecisionTree",
-            "file": "decisiontree.onnx",
-            "features": "extended features (72)",
-            "seconds": "whole wav",
-            "recall": 0.778,
-            "precision": 0.574,
-            "f1": 0.66,
-            "accuracy": 0.82,
-            "auc": 0.834,
-            "test_recall": 0.788,
-            "test_precision": 0.607,
-            "test_f1": 0.686,
-            "test_accuracy": 0.839,
-            "test_auc": 0.853,
-            "mlflow_run_id": "47424f6a1530453ea83fc4e6e705cc6f"
+            "recall": 0.793,
+            "precision": 0.704,
+            "f1": 0.746,
+            "accuracy": 0.879,
+            "auc": 0.942,
+            "test_recall": 0.812,
+            "test_precision": 0.72,
+            "test_f1": 0.764,
+            "test_accuracy": 0.887,
+            "test_auc": 0.955,
+            "mlflow_run_id": "c4951b31b36c492ea483efcaa6afe0fe"
         }
     ]
 }

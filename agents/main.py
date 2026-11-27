@@ -18,8 +18,9 @@ from agents.schemas import AudioResult
 from rag_engine.ingest import QDRANT_URL
 
 MLFLOW_TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI", "")
-os.environ.setdefault("MLFLOW_HTTP_REQUEST_MAX_RETRIES", "0")    # if MLflow is down: give up fast
-os.environ.setdefault("MLFLOW_HTTP_REQUEST_TIMEOUT", "5")
+os.environ.setdefault("MLFLOW_HTTP_REQUEST_MAX_RETRIES", "2")      # if MLflow is down: give up after 2 retries
+os.environ.setdefault("MLFLOW_HTTP_REQUEST_BACKOFF_FACTOR", "1")   # (the logging runs after the answer is sent)
+os.environ.setdefault("MLFLOW_HTTP_REQUEST_TIMEOUT", "10")
 
 
 def log_llm_inference(metrics):
@@ -28,17 +29,23 @@ def log_llm_inference(metrics):
     if MLFLOW_TRACKING_URI == "":
         return
     try:
-        import mlflow
-        mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
-        mlflow.set_experiment("llm_inference")
-        with mlflow.start_run(run_name="orchestrate"):
-            mlflow.log_param("llm_model", llm.LLM_MODEL)
-            mlflow.log_param("risk_level", metrics.get("risk_level", ""))
-            for name in ["analyste_s", "cardiologue_s", "auditeur_s", "total_s", "prompt_tokens", "eval_tokens",
-                         "retries", "n_sources"]:
-                mlflow.log_metric(name, metrics.get(name, 0))
-            for name in ["schema_valid", "approved", "fallback"]:
-                mlflow.log_metric(name, int(bool(metrics.get(name, False))))    # True / False -> 1 / 0
+        # MlflowClient = the explicit MLflow client: no shared "active run", safe in a background task
+        from mlflow.tracking import MlflowClient
+        client = MlflowClient(MLFLOW_TRACKING_URI)
+        experiment = client.get_experiment_by_name("llm_inference")
+        if experiment is None:
+            experiment_id = client.create_experiment("llm_inference")
+        else:
+            experiment_id = experiment.experiment_id
+        run_id = client.create_run(experiment_id, run_name="orchestrate").info.run_id
+        client.log_param(run_id, "llm_model", llm.LLM_MODEL)
+        client.log_param(run_id, "risk_level", metrics.get("risk_level", ""))
+        for name in ["analyste_s", "cardiologue_s", "auditeur_s", "total_s", "prompt_tokens", "eval_tokens",
+                     "retries", "n_sources"]:
+            client.log_metric(run_id, name, metrics.get(name, 0))
+        for name in ["schema_valid", "approved", "fallback"]:
+            client.log_metric(run_id, name, int(bool(metrics.get(name, False))))    # True / False -> 1 / 0
+        client.set_terminated(run_id)
     except Exception as error:
         print("MLflow logging failed (the report is not affected):", error)
 

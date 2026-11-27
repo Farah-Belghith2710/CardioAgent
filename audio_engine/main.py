@@ -4,6 +4,7 @@ Service 3 : audio-engine (ONNX Runtime + Librosa)
 The benchmark of our 5 models (exported to ONNX by the notebook 05) on each heart sound (.wav):
   - every model gets the wav prepared EXACTLY like in its notebook (TP4 tree, TP3 SVM, TP7 CNN, TP8 ResNet50,
     07 Transformer-CNN)
+  - the ensemble of notebook 08 = the mean of the probabilities of its members (no extra ONNX file)
   - the official answer = the best model of the benchmark (the highest mean validation recall in MLflow)
   - each prediction is logged in MLflow (experiment "inference_logs") when MLFLOW_TRACKING_URI is set
   api-gateway --(.wav)--> POST /predict --> the official answer + the answer and the scores of each model
@@ -23,8 +24,9 @@ HERE = os.path.dirname(os.path.abspath(__file__))    # the folder of this file (
 
 # MLflow (Service 6) for the traceability of the predictions. Empty = no logging (tests, CI, MLflow not ready).
 MLFLOW_TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI", "")
-os.environ.setdefault("MLFLOW_HTTP_REQUEST_MAX_RETRIES", "0")    # if MLflow is down: give up fast, never block
-os.environ.setdefault("MLFLOW_HTTP_REQUEST_TIMEOUT", "5")
+os.environ.setdefault("MLFLOW_HTTP_REQUEST_MAX_RETRIES", "2")      # if MLflow is down: give up after 2 retries
+os.environ.setdefault("MLFLOW_HTTP_REQUEST_BACKOFF_FACTOR", "1")   # (the logging runs after the answer is sent)
+os.environ.setdefault("MLFLOW_HTTP_REQUEST_TIMEOUT", "10")
 
 # benchmark.json (written by the notebook 05): our models, their ONNX file and their scores in MLflow,
 # sorted by validation recall -> the first one is the best one
@@ -43,13 +45,28 @@ sessions = {}
 models = []            # the models of the benchmark that are really loaded, in the benchmark order
 missing_models = []
 for m in benchmark["models"]:
+    if m["model"] == "Ensemble":
+        continue           # the ensemble has no file: it is checked just below
     path = os.path.join(HERE, m["file"])
     if os.path.exists(path) and (m["model"] != "ResNet50" or MAGMA_LUT is not None):
         sessions[m["model"]] = ort.InferenceSession(path)
-        models.append(m)
     else:
         missing_models.append(m["model"])
         print("WARNING:", m["file"], "not found -> the model", m["model"], "is skipped (run notebook 05 to make it)")
+
+# the ensemble (notebook 08) = the mean of the probabilities of its members: it works only if all of them are loaded
+for m in benchmark["models"]:
+    if m["model"] == "Ensemble":
+        ready = True
+        for member in m["members"]:
+            if member not in sessions:
+                ready = False
+        if ready:
+            models.append(m)
+        else:
+            missing_models.append("Ensemble")
+    elif m["model"] in sessions:
+        models.append(m)
 
 
 def cut(signal, seconds):
@@ -176,26 +193,63 @@ def run_model(m, signal):
     }
 
 
+def run_ensemble(m, answers_by_model):
+    # notebook 08 (soft vote): the mean of the probabilities of "abnormal" of the members, more than 0.5 -> abnormal
+    total = 0
+    for member in m["members"]:
+        total = total + answers_by_model[member]["probability_abnormal"]
+    probability = total / len(m["members"])
+    if probability > 0.5:
+        prediction = "abnormal"
+    else:
+        prediction = "normal"
+    return {
+        "model": "Ensemble",
+        "prediction": prediction,
+        "probability_abnormal": round(probability, 3),
+        "recall": m["recall"],
+        "precision": m["precision"],
+        "f1": m["f1"],
+        "accuracy": m["accuracy"],
+        "test_recall": m.get("test_recall"),
+        "test_f1": m.get("test_f1"),
+    }
+
+
 def log_inference(result, latency_ms):
     # traceability (PDF, Service 6): 1 small MLflow run per prediction, in the experiment "inference_logs".
     # No file name and no audio: no patient data leaves the engine. A problem with MLflow never breaks a prediction.
     if MLFLOW_TRACKING_URI == "":
         return
     try:
-        import mlflow
-        mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
-        mlflow.set_experiment("inference_logs")
-        with mlflow.start_run(run_name="predict_" + result["model"]):
-            mlflow.log_param("model", result["model"])
-            mlflow.log_param("prediction", result["prediction"])
-            mlflow.log_param("warning", result["warning"] or "none")
-            if result["probability_abnormal"] is not None:
-                mlflow.log_metric("probability_abnormal", result["probability_abnormal"])
-            mlflow.log_metric("latency_ms", latency_ms)
-            mlflow.log_metric("duration_s", result["duration_s"])
-            mlflow.log_metric("n_models", len(result["benchmark"]))
+        # MlflowClient = the explicit MLflow client: no shared "active run", safe in a background task
+        from mlflow.tracking import MlflowClient
+        client = MlflowClient(MLFLOW_TRACKING_URI)
+        experiment = client.get_experiment_by_name("inference_logs")
+        if experiment is None:
+            experiment_id = client.create_experiment("inference_logs")
+        else:
+            experiment_id = experiment.experiment_id
+        run_id = client.create_run(experiment_id, run_name="predict_" + result["model"]).info.run_id
+        client.log_param(run_id, "model", result["model"])
+        client.log_param(run_id, "prediction", result["prediction"])
+        client.log_param(run_id, "warning", result["warning"] or "none")
+        if result["probability_abnormal"] is not None:
+            client.log_metric(run_id, "probability_abnormal", result["probability_abnormal"])
+        client.log_metric(run_id, "latency_ms", latency_ms)
+        client.log_metric(run_id, "duration_s", result["duration_s"])
+        client.log_metric(run_id, "n_models", len(result["benchmark"]))
+        client.set_terminated(run_id)
     except Exception as error:
         print("MLflow logging failed (the prediction is not affected):", error)
+
+
+# warm-up: the first call of librosa compiles some of its functions (numba) and ONNX Runtime prepares each model.
+# We do it once now, when the container starts, so the first real request is not slow.
+warm_up_signal = np.random.default_rng(0).normal(0, 0.1, SR * 6).astype(np.float32)
+for m in models:
+    if m["model"] != "Ensemble":
+        run_model(m, warm_up_signal)
 
 
 app = FastAPI(title="audio-engine", description="Service 3 : moteur audio (benchmark de nos 5 modèles au format ONNX)")
@@ -235,10 +289,17 @@ def predict(background_tasks: BackgroundTasks, file: UploadFile = File(...)):
     elif np.mean(np.abs(signal) >= 0.99) > 0.01:
         warning = "Enregistrement saturé : résultat moins fiable"
 
-    # 3. the benchmark: every model gives its answer (the first one = the best model)
-    answers = []
+    # 3. the benchmark: every model gives its answer, then the ensemble (the mean of the probabilities of its members)
+    answers_by_model = {}
     for m in models:
-        answers.append(run_model(m, signal))
+        if m["model"] != "Ensemble":
+            answers_by_model[m["model"]] = run_model(m, signal)
+    for m in models:
+        if m["model"] == "Ensemble":
+            answers_by_model["Ensemble"] = run_ensemble(m, answers_by_model)
+    answers = []
+    for m in models:                  # in the order of the benchmark: the first one = the best model
+        answers.append(answers_by_model[m["model"]])
     best = answers[0]
 
     result = {

@@ -1,0 +1,216 @@
+{
+ "SVM": {
+  "candidates": [
+   {
+    "key": "extended72",
+    "name": "72 features, rbf, default C/gamma",
+    "from": "Zaineb",
+    "recall": 0.894,
+    "f1": 0.705,
+    "precision": 0.582,
+    "accuracy": 0.832,
+    "kept": true,
+    "trade_off": false
+   },
+   {
+    "key": "extended72_tuned_f2",
+    "name": "72 features, rbf, C/gamma tuned with F2 in each fold",
+    "from": "merged",
+    "recall": 0.894,
+    "f1": 0.705,
+    "precision": 0.582,
+    "accuracy": 0.832,
+    "kept": false,
+    "trade_off": false
+   },
+   {
+    "key": "extended72_plus_mel",
+    "name": "72 features + Mel 2 s (552 numbers), rbf",
+    "from": "merged",
+    "recall": 0.845,
+    "f1": 0.676,
+    "precision": 0.564,
+    "accuracy": 0.818,
+    "kept": false,
+    "trade_off": false
+   }
+  ],
+  "winner": "extended72"
+ },
+ "DecisionTree": {
+  "candidates": [
+   {
+    "key": "mfcc26_gini_depth10",
+    "name": "26 MFCC, gini, depth 10 (Farah's original)",
+    "from": "Farah",
+    "criterion": "gini",
+    "max_depth": 10,
+    "features": "26 MFCC",
+    "recall": 0.688,
+    "f1": 0.624,
+    "precision": 0.571,
+    "accuracy": 0.814,
+    "kept": false,
+    "trade_off": false
+   },
+   {
+    "key": "extended72_nested",
+    "name": "72 features, depth chosen inside each fold [11, 8, 5]",
+    "from": "Zaineb",
+    "criterion": "gini",
+    "max_depth": null,
+    "features": "72 extended",
+    "recall": 0.77,
+    "f1": 0.651,
+    "precision": 0.57,
+    "accuracy": 0.815,
+    "kept": false,
+    "trade_off": false
+   },
+   {
+    "key": "mfcc26_f1",
+    "name": "26 MFCC, F1 rule: entropy depth 10",
+    "from": "merged",
+    "criterion": "entropy",
+    "max_depth": 10,
+    "features": "26 MFCC",
+    "recall": 0.737,
+    "f1": 0.654,
+    "precision": 0.588,
+    "accuracy": 0.825,
+    "kept": false,
+    "trade_off": false
+   },
+   {
+    "key": "mfcc26_recall",
+    "name": "26 MFCC, recall rule: entropy depth 9",
+    "from": "merged",
+    "criterion": "entropy",
+    "max_depth": 9,
+    "features": "26 MFCC",
+    "recall": 0.767,
+    "f1": 0.65,
+    "precision": 0.565,
+    "accuracy": 0.814,
+    "kept": false,
+    "trade_off": false
+   },
+   {
+    "key": "extended72_f1",
+    "name": "72 extended, F1 rule: gini depth 8",
+    "from": "merged",
+    "criterion": "gini",
+    "max_depth": 8,
+    "features": "72 extended",
+    "recall": 0.778,
+    "f1": 0.66,
+    "precision": 0.574,
+    "accuracy": 0.82,
+    "kept": false,
+    "trade_off": false
+   },
+   {
+    "key": "extended72_recall",
+    "name": "72 extended, recall rule: entropy depth 7",
+    "from": "merged",
+    "criterion": "entropy",
+    "max_depth": 7,
+    "features": "72 extended",
+    "recall": 0.82,
+    "f1": 0.657,
+    "precision": 0.55,
+    "accuracy": 0.807,
+    "kept": true,
+    "trade_off": false
+   }
+  ],
+  "winner": "extended72_recall"
+ },
+ "CNN": {
+  "candidates": [
+   {
+    "key": "farah",
+    "name": "Farah: Conv + MaxPool, Flatten, Dense 32, 20 epochs",
+    "from": "Farah",
+    "recall": 0.938,
+    "f1": 0.628,
+    "precision": 0.472,
+    "accuracy": 0.75,
+    "kept": true,
+    "trade_off": false
+   },
+   {
+    "key": "zaineb",
+    "name": "Zaineb: BatchNorm + GAP + softmax, early stopping [60, 44, 46]",
+    "from": "Zaineb",
+    "recall": 0.668,
+    "f1": 0.69,
+    "precision": 0.715,
+    "accuracy": 0.865,
+    "kept": false,
+    "trade_off": true
+   },
+   {
+    "key": "merged_flatten",
+    "name": "merged: + BatchNorm + early stopping, Flatten [40, 26, 23]",
+    "from": "merged",
+    "recall": 0.534,
+    "f1": 0.411,
+    "precision": 0.364,
+    "accuracy": 0.773,
+    "kept": false,
+    "trade_off": false
+   },
+   {
+    "key": "merged_gap",
+    "name": "merged: + BatchNorm + early stopping, GAP [22, 38, 20]",
+    "from": "merged",
+    "recall": 0.692,
+    "f1": 0.66,
+    "precision": 0.639,
+    "accuracy": 0.838,
+    "kept": false,
+    "trade_off": true
+   }
+  ],
+  "winner": "farah"
+ },
+ "ResNet50": {
+  "candidates": [
+   {
+    "key": "farah",
+    "name": "Farah: BN + Dense 128 + Dropout, 30 epochs",
+    "from": "Farah",
+    "recall": 0.789,
+    "f1": 0.748,
+    "precision": 0.713,
+    "accuracy": 0.881,
+    "kept": false,
+    "trade_off": false
+   },
+   {
+    "key": "early_stopping_128",
+    "name": "merged: Dense 128 + early stopping [29, 35, 29]",
+    "from": "merged",
+    "recall": 0.78,
+    "f1": 0.729,
+    "precision": 0.687,
+    "accuracy": 0.87,
+    "kept": false,
+    "trade_off": false
+   },
+   {
+    "key": "early_stopping_256",
+    "name": "merged: Dense 256 + early stopping [23, 24, 29]",
+    "from": "merged",
+    "recall": 0.793,
+    "f1": 0.746,
+    "precision": 0.704,
+    "accuracy": 0.879,
+    "kept": true,
+    "trade_off": false
+   }
+  ],
+  "winner": "early_stopping_256"
+ }
+}

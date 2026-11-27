@@ -54,7 +54,7 @@ jobs:
         run: |
           docker run -d --name api-gateway -p 8000:8000 cardioagent/api-gateway:ci
           docker run -d --name audio-engine -p 8001:8001 cardioagent/audio-engine:ci
-          for i in $(seq 1 30); do
+          for i in $(seq 1 90); do       # up to 3 min: the audio engine warms up its models at start
             if curl -sf http://localhost:8000/health && curl -sf http://localhost:8001/health; then
               echo; echo "both services are healthy"; exit 0
             fi

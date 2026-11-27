@@ -1,8 +1,8 @@
-# The libraries of the test suite (pytest + the code of the 4 Python modules). Light: no TensorFlow, no Torch.
+﻿# The libraries of the test suite (pytest + the code of the 4 Python modules). Light: no TensorFlow, no Torch.
 #   pip install -r requirements-test.txt
 #   pytest --cov=audio_engine --cov=api --cov=agents --cov=rag_engine --cov-report=term-missing
-pytest==8.4.2
-pytest-cov==6.3.0
+pytest==9.2.0
+pytest-cov==7.1.0
 httpx==0.28.1
 # audio_engine
 numpy==2.2.6

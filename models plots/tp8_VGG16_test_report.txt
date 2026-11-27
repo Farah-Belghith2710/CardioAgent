@@ -2,9 +2,9 @@ VGG16 (transfer learning) - test set (737 wavs never seen)
 
               precision    recall  f1-score   support
 
-      normal       0.94      0.85      0.90       572
-    abnormal       0.62      0.81      0.70       165
+      normal       0.93      0.89      0.91       572
+    abnormal       0.67      0.76      0.72       165
 
-    accuracy                           0.85       737
-   macro avg       0.78      0.83      0.80       737
-weighted avg       0.87      0.85      0.85       737
+    accuracy                           0.86       737
+   macro avg       0.80      0.83      0.81       737
+weighted avg       0.87      0.86      0.87       737

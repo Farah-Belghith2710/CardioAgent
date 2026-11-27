@@ -17,13 +17,15 @@ services:
       dockerfile: docker/llm-server.Dockerfile
     environment:
       LLM_MODEL: ${LLM_MODEL:-qwen2.5:3b-instruct}    # cardio-llm once the fine-tuned GGUF is in llm_server/models/
+      OLLAMA_KEEP_ALIVE: "-1"                          # the model stays in memory (no reload before each report)
+      OLLAMA_LOAD_TIMEOUT: "30m"                       # reading the model from the Docker disk can be slow
     volumes:
       - ollama-data:/root/.ollama                      # the downloaded / created models (kept between restarts)
       - ./llm_server/models:/models:ro                 # the fine-tuned GGUF (git-ignored, ~4.7 GB)
     ports:
       - "11435:11434"                                  # 11434 on the PC is already used by a native Ollama
-    healthcheck:                                       # healthy = the model of the agents is ready
-      test: ["CMD-SHELL", "ollama show \"$$LLM_MODEL\" > /dev/null 2>&1"]
+    healthcheck:                                       # healthy = the model of the agents is loaded in memory
+      test: ["CMD-SHELL", "ollama ps | grep -q \"$$LLM_MODEL\""]
       interval: 15s
       timeout: 10s
       retries: 240                                     # the first download of the model can take a while
@@ -65,7 +67,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 12
-      start_period: 20s
+      start_period: 180s                               # the warm-up of the 5 models at start (main.py)
     networks: [cardio-net]
     restart: unless-stopped
 
@@ -139,7 +141,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 12
-      start_period: 20s
+      start_period: 300s                               # the first start checks the database (~4 min on our PC)
     networks: [cardio-net]
     restart: unless-stopped
 
