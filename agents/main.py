@@ -4,9 +4,10 @@ Service 4 : agent-orchestrator (FastAPI + the LangGraph graph of the 3 agents)
   api-gateway --(the JSON of the audio engine)--> POST /orchestrate --> {"audio": ..., "report": CardioReport}
   api-gateway --(question + last analysis)-------> POST /chat        --> ChatAnswer (agents/chat.py)
 
-Guardrails "sans fuite de données": everything stays in our Docker network (Ollama for the LLM, Qdrant for the RAG,
-no external API), the audio never reaches the LLM (only the numbers of the audio engine), the file name is removed,
-and nothing about the patient is stored. Each run logs only metrics to MLflow (experiment "llm_inference").
+Guardrails "sans fuite de données": in the local mode everything stays in our Docker network (Ollama for the LLM,
+Qdrant for the RAG). In the online mode (Groq / xAI, agents/llm.py) only the question and the numbers of the analysis
+go to the provider. In both modes the audio never reaches the LLM, the file name is removed, and nothing about the
+patient is stored. Each run logs only metrics to MLflow (experiment "llm_inference"): never the texts, never the key.
 """
 import os
 
@@ -40,7 +41,8 @@ def log_to_mlflow(run_name, params, metrics):
         else:
             experiment_id = experiment.experiment_id
         run_id = client.create_run(experiment_id, run_name=run_name).info.run_id
-        client.log_param(run_id, "llm_model", llm.LLM_MODEL)
+        client.log_param(run_id, "llm_provider", llm.provider())    # groq / xai / ollama (never the key)
+        client.log_param(run_id, "llm_model", llm.model_name())
         for name in params:
             client.log_param(run_id, name, params[name])
         for name in metrics:
@@ -79,7 +81,9 @@ def health():
         qdrant_ok = requests.get(QDRANT_URL + "/readyz", timeout=3).status_code == 200
     except requests.RequestException:
         qdrant_ok = False
-    return {"status": "ok", "llm_model": llm.LLM_MODEL, "llm_ready": llm.is_ready(), "qdrant_ready": qdrant_ok}
+    # llm_provider: the page shows "Mode en ligne" (groq / xai) or "Mode local" (ollama) in its footer
+    return {"status": "ok", "llm_provider": llm.provider(), "llm_online": llm.is_online(), "llm_model": llm.model_name(),
+            "llm_ready": llm.is_ready(), "qdrant_ready": qdrant_ok}
 
 
 @app.post("/orchestrate")

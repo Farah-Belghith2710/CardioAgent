@@ -127,6 +127,7 @@
 
     footer { max-width: 1840px; margin: 0 auto; padding: 0 24px 20px; font-size: 13px; display: flex; gap: 16px; justify-content: flex-end; }
     footer a { color: var(--blue); text-decoration: none; }
+    footer .mode-note { margin-right: auto; color: var(--muted); }
   </style>
 </head>
 <body>
@@ -186,6 +187,7 @@
   </main>
 
   <footer>
+    <span id="mode-note" class="mode-note"></span>
     <a href="/docs">Documentation API</a>
     <a href="/health">État du service</a>
   </footer>
@@ -213,10 +215,22 @@
     let analysisNumber = 0;    // to ignore a late report of an older wav
 
     // ---------- is the API running? ----------
-    fetch("/health").then(r => setStatus(r.ok)).catch(() => setStatus(false));
+    fetch("/health")
+      .then(r => r.json().then(data => { setStatus(r.ok); showMode(data.llm_provider); }))
+      .catch(() => setStatus(false));
     function setStatus(online) {
       document.getElementById("status").className = "status " + (online ? "online" : "offline");
       document.getElementById("status-text").textContent = online ? "API en ligne" : "API hors ligne";
+    }
+    function showMode(provider) {
+      // the privacy note of the footer: what leaves the computer in each mode of the LLM
+      const note = document.getElementById("mode-note");
+      if (provider === "groq" || provider === "xai") {
+        note.textContent = "Mode en ligne : votre question et les chiffres de l'analyse sont envoyés au service d'IA (" +
+                           (provider === "groq" ? "Groq" : "xAI") + "). L'audio et le nom du fichier ne sont jamais envoyés.";
+      } else if (provider === "ollama") {
+        note.textContent = "Mode local : rien ne quitte votre ordinateur.";
+      }
     }
 
     // ---------- choose the wav: click or drag & drop ----------
@@ -278,7 +292,7 @@
       line.className = "waiting";
       const spin = document.createElement("span");
       spin.className = "spinner";
-      line.append(spin, "Les agents (Analyste → Cardiologue → Auditeur) rédigent le rapport… quelques minutes sur un ordinateur sans GPU.");
+      line.append(spin, "Les agents (Analyste → Cardiologue → Auditeur) rédigent le rapport…");
       waiting.append(line);
       reportCol.append(waiting);
       try {
@@ -435,7 +449,7 @@
       const dots = document.createElement("div");
       dots.className = "dots";
       dots.append(document.createElement("span"), document.createElement("span"), document.createElement("span"));
-      typing.append(dots, "L'assistant écrit… (1 à 3 min sur un ordinateur sans GPU)");
+      typing.append(dots, "L'assistant écrit…");
       messages.append(typing);
       messages.scrollTop = messages.scrollHeight;
       try {

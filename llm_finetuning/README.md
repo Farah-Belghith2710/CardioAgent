@@ -15,8 +15,8 @@
    `llm_finetuning/outputs/`; the `.gguf` → `llm_server/models/` (both folders are git-ignored: big files).
 4. `venv\Scripts\python llm_finetuning\log_finetuning_to_mlflow.py`
 5. `docker compose up -d --build llm-server`: the server sees the GGUF and runs `ollama create cardio-llm`;
-   set `LLM_MODEL=cardio-llm` (file `.env`, see the main README) so the agents use it.
+   start the local mode with it: `scripts\start_local_mode.ps1 -Model cardio-llm` (see the main README, section 2b).
 
 Until the GGUF exists, the platform runs the base model `qwen2.5:3b-instruct` pulled by Ollama (the default
 `LLM_MODEL` of `docker-compose.yml`: on this PC the LLM runs on the CPU, and Docker has ~7.7 GB of memory).
-The fine-tuned model is a 7B (~4.7 GB): with `LLM_MODEL=cardio-llm` the reports are better but slower on a CPU.
+The fine-tuned model is a 7B (~4.7 GB): with `-Model cardio-llm` the reports are better but slower on a CPU.

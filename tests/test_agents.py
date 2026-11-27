@@ -282,7 +282,7 @@ def test_chat_json_refuses_an_answer_that_is_not_json(monkeypatch):
 
 def test_is_ready(monkeypatch):
     monkeypatch.setattr(llm.requests, "get",
-                        lambda url, timeout=None: FakeOllamaResponse({"models": [{"name": llm.LLM_MODEL}]}))
+                        lambda url, timeout=None: FakeOllamaResponse({"models": [{"name": llm.model_name()}]}))
     assert llm.is_ready() is True
 
     def down(url, timeout=None):

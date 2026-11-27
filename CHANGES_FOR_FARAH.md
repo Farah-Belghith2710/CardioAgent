@@ -41,7 +41,7 @@ For each model, all the versions (yours, Zaineb's, mixes of the two) were run on
 - **3 agents**: Analyste (reads the numbers) → Cardiologue (explains with the RAG documents, with citations) →
   Auditeur (checks: no diagnosis, no prescription, sources, a doctor in the disclaimer). Pydantic checks the JSON.
 - **Fine-tuning QLoRA** (Google Colab, T4 GPU): Qwen 2.5 7B on 506 French examples → `cardio-llm` (GGUF 4-bit).
-- **Tests**: 100 tests, 91 % coverage, GitHub Actions at each push.
+- **Tests**: 115 tests, 92 % coverage, GitHub Actions at each push (no key needed).
 
 ## 3b. The chat with the assistant (branch `chat-feature`)
 
@@ -51,6 +51,19 @@ For each model, all the versions (yours, Zaineb's, mixes of the two) were run on
   ("C'est quoi un souffle ?"). Off-topic questions ("comment faire une pizza ?") get a polite refusal.
 - **The Auditeur was fixed**: the small LLM now answers simple true/false questions and the code decides, so good
   reports are approved instead of being replaced by the backup report.
+
+## 3c. The online LLM with an API key (branch `online-llm`)
+
+- **Every day (online mode)**: your key goes in the file `.env` (`LLM_API_KEY=...`), never in a chat or a commit.
+  Start with `powershell -ExecutionPolicy Bypass -File scripts\start_online_mode.ps1`. The reports and the chat
+  answers come in a few seconds instead of minutes. Groq keys start with `gsk_`, xAI keys with `xai-`: the code
+  finds the provider alone.
+- **Demo for the prof (local mode, the version of the PDF)**:
+  `powershell -ExecutionPolicy Bypass -File scripts\start_local_mode.ps1` starts the 6 containers with Ollama:
+  nothing leaves the PC (slower). Back with `scripts\start_online_mode.ps1`. No file to edit.
+- The footer of the page says « Mode en ligne » or « Mode local ».
+- If the key is wrong or there is no internet: the report is the safe one written by the code, and the chat says
+  « Le service d'IA en ligne n'est pas disponible pour le moment (vérifiez la clé dans .env). ».
 
 ## 4. Questions the prof may ask (and short answers)
 
@@ -81,11 +94,20 @@ For each model, all the versions (yours, Zaineb's, mixes of the two) were run on
 - **Why does it never give a diagnosis?** The prompt forbids it, and the code checks the answer with the Auditeur's
   list of forbidden words (diagnosis, drugs, doses); a refused answer is replaced, and every answer says that only a
   doctor can confirm (and gives the emergency number for chest pain or fainting).
-- **Where are the data protected ("sans fuite de données")?** Everything runs in our Docker network (no external
-  API), the LLM never receives the audio or the file name, and MLflow stores only numbers.
+- **Where are the data protected ("sans fuite de données")?** In the local mode everything runs in our Docker
+  network (no external API). In both modes the LLM never receives the audio or the file name, and MLflow stores only
+  numbers (never the key).
+- **Why an online LLM?** On our PC without a usable GPU, the local LLM needs minutes per report; Groq / xAI answer in
+  seconds, which is better for a demo. The local version is still there, in one command.
+- **What leaves the PC in the online mode?** Only the question and the numbers of the analysis (prediction,
+  probabilities, scores of the models), sent to the provider. Never the audio, never the file name; the page footer
+  says it.
+- **How do you show the local version?** `scripts\start_local_mode.ps1`: the same code with `LLM_PROVIDER=ollama`, the
+  6 containers of the PDF, and the footer says « Mode local : rien ne quitte votre ordinateur. »
 
 ## 5. What you still do by hand (if you want)
 
-- `docker compose up -d --build`, then open http://localhost:8000 and drop a wav of the test set.
-- To use the fine-tuned LLM: put `cardio-qwen2.5-7b-q4_k_m.gguf` in `llm_server/models/` and write
-  `LLM_MODEL=cardio-llm` in a `.env` file next to `docker-compose.yml` (see the README, section 6).
+- `scripts\start_online_mode.ps1` (or `scripts\start_local_mode.ps1`), then open http://localhost:8000 and drop a
+  wav of the test set.
+- To use the fine-tuned LLM: put `cardio-qwen2.5-7b-q4_k_m.gguf` in `llm_server/models/` and start
+  `scripts\start_local_mode.ps1 -Model cardio-llm` (see the README, sections 2b and 6).

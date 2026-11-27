@@ -1,17 +1,23 @@
-# CardioAgent-Ops: the 6 micro-services on the Docker network "cardio-net"
+# CardioAgent-Ops: the micro-services on the Docker network "cardio-net"
 #
-#   docker compose up --build -d                    start the whole platform (http://localhost:8000)
+# 2 modes for the LLM of the agents and of the chat (settings LLM_* in the file .env, see .env.example):
+#   online mode (default): an online LLM with an API key (Groq or xAI): 5 containers + the API of the provider
+#       scripts/start_online_mode.ps1        (= docker compose up -d --build)
+#   local mode (the version of the PDF, nothing leaves the PC): the 6 containers, with llm-server (Ollama)
+#       scripts/start_local_mode.ps1         (= LLM_PROVIDER=ollama + docker compose --profile local-llm up -d --build)
+#
 #   docker compose run --rm agent-orchestrator python -m rag_engine.ingest      index the RAG documents (once)
-#   docker compose ps                               see the state (and the healthchecks) of the 6 services
+#   docker compose ps                               see the state (and the healthchecks) of the services
 #
 # client --(.wav)--> api-gateway:8000 --> audio-engine:8001 (5 ONNX models, logs in MLflow)
-#                         '--> agent-orchestrator:8002 --> vector-db:6333 (RAG) + llm-server:11434 (LLM) + MLflow
-# Settings in a file ".env" next to this file (optional), e.g.  LLM_MODEL=qwen2.5:7b-instruct
+#                         '--> agent-orchestrator:8002 --> vector-db:6333 (RAG) + the LLM (Groq / xAI, or llm-server) + MLflow
 name: cardioagent
 
 services:
   # ---------- Service 1: the LLM (Ollama), local and quantized (GGUF 4-bit) ----------
+  # only in the local mode (profile "local-llm"): docker compose --profile local-llm up -d
   llm-server:
+    profiles: ["local-llm"]
     build:
       context: .
       dockerfile: docker/llm-server.Dockerfile
@@ -80,8 +86,13 @@ services:
     init: true                                         # a tiny init: stops cleanly, no zombie process
     environment:
       QDRANT_URL: http://vector-db:6333
-      LLM_URL: http://llm-server:11434
-      LLM_MODEL: ${LLM_MODEL:-qwen2.5:3b-instruct}
+      # the LLM (agents/llm.py), from the file .env; a value set in the terminal wins over .env
+      # (scripts/start_local_mode.ps1 sets LLM_PROVIDER=ollama). Only this container receives the key.
+      LLM_PROVIDER: ${LLM_PROVIDER:-}                  # groq / xai / ollama, empty = guessed from the key
+      LLM_API_KEY: ${LLM_API_KEY:-}                    # secret: never in an image, never in git
+      LLM_BASE_URL: ${LLM_BASE_URL:-}
+      LLM_MODEL: ${LLM_MODEL:-}                        # empty = the default model of the provider
+      LLM_URL: http://llm-server:11434                 # the local LLM (local mode)
       LLM_TIMEOUT: "600"
       MLFLOW_TRACKING_URI: http://mlflow-server:5000
       RAG_DOCS_FOLDER: /docs
@@ -94,6 +105,7 @@ services:
         condition: service_healthy
       llm-server:
         condition: service_healthy
+        required: false                                # only in the local mode: the online mode does not need it
       mlflow-server:
         condition: service_healthy
     healthcheck:

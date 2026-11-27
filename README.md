@@ -2,12 +2,13 @@
 
 **Containerized micro-service platform (Docker), MLOps, LLM fine-tuning, RAG and multi-agent AI for heart-sound
 (PCG) analysis** — mini-project *Data Mining & Machine Learning*, ENSIT, section 3G Math, 2026-2027
-(teacher: Dr. Mehrez Boulares). Team: **Farah Belghith** and **Zaineb** (`zaineb1802`); how the two works were merged:
+(teacher: Dr. Mehrez Boulares). Team: **Farah Belghith** and **Zaineb Darchem**; how the two works were merged:
 [`MERGE_NOTES.md`](MERGE_NOTES.md).
 
 A `.wav` heart sound goes in; out comes (1) the answer of 5 machine-learning models + an ensemble, run with ONNX
 Runtime, and (2) a careful French report written by 3 AI agents (Analyste → Cardiologue RAG → Auditeur), grounded on
-cardiology documents and checked by Pydantic. Everything runs locally in 6 Docker containers: no data leaves the PC.
+cardiology documents and checked by Pydantic. It runs in Docker containers, with 2 modes for the LLM: **online**
+(Groq or xAI with an API key: fast) or **local** (Ollama in a 6th container, as in the PDF: nothing leaves the PC).
 
 ## 1. Architecture: the 6 micro-services
 
@@ -18,7 +19,8 @@ flowchart LR
     ae -->|probabilities + benchmark| gw
     gw -->|audio JSON| orch[Service 4<br/>agent-orchestrator<br/>LangGraph :8002]
     orch -->|similarity search| vdb[(Service 2<br/>vector-db<br/>Qdrant :6333)]
-    orch -->|prompt + RAG context| llm[Service 1<br/>llm-server<br/>Ollama :11434]
+    orch -->|local mode: prompt + RAG context| llm[Service 1<br/>llm-server<br/>Ollama :11434]
+    orch -.->|online mode: question + numbers| cloud[(Groq / xAI API<br/>API key in .env)]
     ae -.->|inference_logs| mlf[(Service 6<br/>mlflow-server :5000)]
     orch -.->|llm_inference| mlf
     orch -->|CardioReport JSON| gw
@@ -27,7 +29,7 @@ flowchart LR
 
 | # | Service | Image (Dockerfile in `docker/`) | Role |
 |---|---|---|---|
-| 1 | `llm-server` | `ollama/ollama:0.40.18` (`llm-server.Dockerfile`) | the local LLM (GGUF 4-bit): base `qwen2.5:3b-instruct`, or `cardio-llm` (our QLoRA fine-tune) |
+| 1 | `llm-server` | `ollama/ollama:0.40.18` (`llm-server.Dockerfile`) | the local LLM (GGUF 4-bit): base `qwen2.5:3b-instruct`, or `cardio-llm` (our QLoRA fine-tune); **local mode only** (compose profile `local-llm`, section 2b) |
 | 2 | `vector-db` | `qdrant/qdrant:v1.20.2` (`vector-db.Dockerfile`) | embeddings of the RAG documents, cosine search |
 | 3 | `audio-engine` | Python 3.12 multi-stage (`audio-engine.Dockerfile`) | preprocessing (2000 Hz, 5 s, Mel, MFCC), the 5 ONNX models + ensemble, MLflow inference logs |
 | 4 | `agent-orchestrator` | Python 3.12 multi-stage (`agent-orchestrator.Dockerfile`) | LangGraph graph of the 3 agents, RAG, Pydantic guardrails, MLflow LLM metrics |
@@ -40,7 +42,8 @@ Prerequisites: Docker Desktop (WSL2), and for the notebooks Python 3.10 (`venv`,
 
 ```powershell
 docker volume create mlflow-data           # once (it already exists on Farah's PC: all the MLflow runs are in it)
-docker compose up --build -d               # the 6 services (the first start downloads the LLM, ~2 GB)
+copy .env.example .env                     # once, then paste your API key in .env (section 2b)
+powershell -ExecutionPolicy Bypass -File scripts\start_online_mode.ps1    # online mode: 5 containers (default)
 docker compose ps                          # all "healthy"
 docker compose run --rm agent-orchestrator python -m rag_engine.ingest      # index the RAG documents (once)
 ```
@@ -48,9 +51,49 @@ docker compose run --rm agent-orchestrator python -m rag_engine.ingest      # in
 Then open **http://localhost:8000** (drop a `.wav`, then ask your questions in the chat), MLflow on
 **http://localhost:5000**. A check with real wavs of
 the test set: `venv\Scripts\python scripts\check_platform.py` (audio engine) or `... 1 --agents` (whole pipeline).
-Settings: a `.env` file next to `docker-compose.yml`, e.g. `LLM_MODEL=cardio-llm` once the fine-tuned GGUF is in
-`llm_server/models/`. Retrain all the models: `venv\Scripts\python audio_engine\train_all.py`.
+The local mode (the 6 containers of the PDF): `scripts\start_local_mode.ps1` (section 2b; `-Model cardio-llm` once
+the fine-tuned GGUF is in `llm_server/models/`). Retrain all the models: `venv\Scripts\python audio_engine\train_all.py`.
 
+
+## 2b. LLM: online mode (API key) or local mode (Ollama)
+
+| | Online mode (default) | Local mode (the version of the PDF) |
+|---|---|---|
+| LLM | Groq (keys `gsk_...`) or xAI Grok (keys `xai-...`), OpenAI-style API | Ollama in the container `llm-server`: `qwen2.5:3b-instruct`, or `cardio-llm` (our fine-tune) |
+| Start | `scripts\start_online_mode.ps1` → 5 containers | `scripts\start_local_mode.ps1` → the 6 containers |
+| Speed (Farah's PC) | <!-- ONLINE_TIMES --> | <!-- LOCAL_TIMES --> |
+| What leaves the PC | the question and the numbers of the analysis (prediction, probabilities, scores of the models), sent to the provider; **never the audio, never the file name** | nothing |
+| Page footer | « Mode en ligne : … » | « Mode local : rien ne quitte votre ordinateur. » |
+
+- **Get a key**: Groq → https://console.groq.com → *API Keys* → *Create API Key* (free tier, the key starts with
+  `gsk_`); xAI → https://console.x.ai → *API Keys* (the key starts with `xai-`).
+- **Where to put it**: `copy .env.example .env`, then `LLM_API_KEY=<your key>` in `.env` (next to
+  `docker-compose.yml`). `.env` is git-ignored and Docker-ignored (never in an image); only the `agent-orchestrator`
+  container receives the key. It is never printed, logged, sent to MLflow or to the browser.
+- **Settings** (`.env.example`): `LLM_PROVIDER` (empty = guessed from the key: `gsk_` → groq, `xai-` → xai, no key →
+  ollama), `LLM_API_KEY`, `LLM_BASE_URL` (empty = `https://api.groq.com/openai/v1` / `https://api.x.ai/v1`),
+  `LLM_MODEL` (empty = the first model of a short list of fast JSON-mode models that the account has, read once from
+  `GET /models` with the key: <!-- DEFAULT_MODEL -->).
+- **Code** (`agents/llm.py`): the same `chat_json()` for both modes, so the agents, the chat and the tests did not
+  change. Online = `POST <base URL>/chat/completions`, `Authorization: Bearer <key>`, `temperature` 0.2,
+  `response_format: json_object`, timeout 60 s, 1 retry after 2 s on 429 / 5xx, tokens from `usage`. Key refused or no
+  network → a clear message in the orchestrator logs (without the key); the report falls back to the safe template
+  written by the code and the chat answers « Le service d'IA en ligne n'est pas disponible pour le moment (vérifiez la
+  clé dans .env). ». The MLflow `llm_inference` runs log `llm_provider` and `llm_model` (never the key).
+
+### Demo for the prof: the local version (as in the PDF)
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\start_local_mode.ps1     # the 6 containers, the LLM = Ollama on the PC
+powershell -ExecutionPolicy Bypass -File scripts\start_online_mode.ps1    # back to the online mode
+```
+
+The local script sets `LLM_PROVIDER=ollama` only for that terminal (no file to edit: a value typed in the terminal
+wins over `.env`) and starts the compose profile `local-llm`; the model stays in the Docker volume `ollama-data`, so
+nothing is downloaded again. `-Model cardio-llm` uses the fine-tuned model. The online script stops `llm-server`
+(stopped, not deleted). The footer of the page says which mode is running.
+
+<!-- MODE_TEST -->
 
 ## 3. Data — `notebooks/01_eda_data_wrangling.ipynb`
 
@@ -160,8 +203,8 @@ SVM and the tree, loss/accuracy per epoch for the networks).
 
 To use it: download the 2 files, unzip the adapter in `llm_finetuning/outputs/cardio_lora_adapter/`, put the GGUF in
 `llm_server/models/`, run `venv\Scripts\python llm_finetuning\log_finetuning_to_mlflow.py` (MLflow experiment
-`llm_finetuning`: loss curve, params, VRAM, GGUF SHA256 + registry `cardio_llm`), then `LLM_MODEL=cardio-llm` in
-`.env` and `docker compose up -d` (the llm-server runs `ollama create cardio-llm` with the Modelfile).
+`llm_finetuning`: loss curve, params, VRAM, GGUF SHA256 + registry `cardio_llm`), then
+`scripts\start_local_mode.ps1 -Model cardio-llm` (the llm-server runs `ollama create cardio-llm` with the Modelfile).
 
 ## 7. RAG — `rag_engine/` + Service 2 (Qdrant)
 
@@ -253,12 +296,15 @@ models agree, which the rule now sends back to the Cardiologue.)
   retry, fallback, LLM down, no file name sent to the LLM), `tests/test_chat.py` (off-topic questions → the fixed
   refusal with no LLM and no RAG call, answers about an abnormal analysis → doctor + sources, no wav → upload first,
   diagnosis / prescription / invented number replaced, emergency number, schemas, gateway `/chat` forwarding + 503 +
-  422, the 2-step page routes), `tests/test_rag.py` (cleaning, chunking, ingest and search with a fake Qdrant,
-  evaluation metrics). Wavs are generated in the tests (numpy + soundfile); every service is mocked.
+  422, the 2-step page routes), `tests/test_llm.py` (the online mode with fake HTTP answers: provider guessed from
+  the key, the OpenAI-style request and its JSON answer, 1 retry after 429, key refused / no network → clear error
+  **without the key** in the logs, the exceptions, the report, `/health` or MLflow, the default model read from
+  `GET /models`, the chat message when the service is down, no file name sent), `tests/test_rag.py` (cleaning,
+  chunking, ingest and search with a fake Qdrant, evaluation metrics). No test needs a key or the network. Wavs are generated in the tests (numpy + soundfile); every service is mocked.
 - `pip install -r requirements-test.txt` (no TensorFlow), then
   `pytest --cov=audio_engine --cov=api --cov=agents --cov=rag_engine --cov-report=term-missing`.
 
-Result on Farah's PC: **100 tests passed, total coverage 91 %** (`agents/chat.py` 94 %, `agents/graph.py` 91 %,
+Result on Farah's PC: **115 tests passed, total coverage 92 %** (`agents/chat.py` 94 %, `agents/llm.py` 92 %, `agents/graph.py` 91 %,
 `api/main.py` 97 %, `audio_engine/main.py` 90 %, `rag_engine/ingest.py` 94 %, `agents/schemas.py` 100 %).
 
 - **GitHub Actions** (`.github/workflows/mlops-ci-cd.yml`), at each push and pull request: job `tests` (Python 3.10,
@@ -305,8 +351,10 @@ the same files run much faster.
 - **The official CNN** has a very high recall but a low precision (about 1 alarm in 2 is false on validation): good
   for screening, not for deciding. The benchmark of every answer shows the other models; the ensemble is the
   balanced choice.
-- **LLM on CPU**: no usable GPU in Docker on this PC, so the default LLM is the 3B model; a report takes minutes.
-  The fine-tuned 7B model works the same way (`LLM_MODEL=cardio-llm`) but is slower and needs ~5 GB more RAM.
+- **LLM**: the online mode is fast but sends the question and the numbers of the analysis to Groq / xAI (free tiers
+  have daily token limits). The local mode keeps everything on the PC but needs minutes per report (no usable GPU in
+  Docker here, so the local default is the 3B model; the fine-tuned 7B, `-Model cardio-llm`, is slower and needs ~5 GB
+  more RAM).
 - **Fine-tuning**: the instruction dataset is generated from templates (fixed seed, no patient data); only the
   training loss is measured (no held-out evaluation), so the low final loss also shows that the templates repeat.
 - **RAG**: the technical questions are in French and the papers in English: hit@1 is only 0.33 for them (0.92 for
@@ -329,6 +377,8 @@ the same files run much faster.
 | `docker/`, `docker-compose.yml` | the 6 Dockerfiles + the compose file |
 | `tests/`, `pytest.ini`, `requirements-test.txt`, `.github/workflows/` | tests and CI/CD |
 | `scripts/check_platform.py` | smoke test of the running platform with real test wavs |
+| `scripts/start_online_mode.ps1`, `scripts/start_local_mode.ps1` | the switch: online LLM (API key) / local LLM (Ollama, the 6 containers) |
+| `.env.example` | the settings of the LLM (copy to `.env`, git-ignored, and paste the key there) |
 | `article for rag/SOURCES.md` | the RAG documents: titles, authors, links, licenses (the PDFs added later stay local) |
 | `courses/` | the course and TP notebooks of the module (the reference style) |
 | `MERGE_NOTES.md`, `CHANGES_FOR_FARAH.md` | the merge with Zaineb; the summary of the changes |

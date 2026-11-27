@@ -63,10 +63,21 @@ def home():
     return FileResponse(os.path.join(HERE, "index.html"))
 
 
+def llm_provider():
+    # the LLM mode for the footer of the page (groq / xai = online, ollama = local), asked to the orchestrator
+    if ORCHESTRATOR_URL == "":
+        return None
+    try:
+        return requests.get(ORCHESTRATOR_URL.rsplit("/", 1)[0] + "/health", timeout=3).json().get("llm_provider")
+    except Exception:
+        return None    # the orchestrator does not answer yet: the page shows no mode
+
+
 @app.get("/health")
 def health():
-    # quick check that the container is running, and which services it knows
-    return {"status": "ok", "audio_engine": AUDIO_ENGINE_URL != "", "orchestrator": ORCHESTRATOR_URL != ""}
+    # quick check that the container is running, which services it knows, and the mode of the LLM
+    return {"status": "ok", "audio_engine": AUDIO_ENGINE_URL != "", "orchestrator": ORCHESTRATOR_URL != "",
+            "llm_provider": llm_provider()}
 
 
 def chat_url():

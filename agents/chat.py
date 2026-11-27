@@ -60,6 +60,10 @@ DISCLAIMER = {
     "fr": "Cet assistant ne remplace pas un médecin : seul un médecin peut confirmer un résultat.",
     "en": "This assistant does not replace a doctor: only a doctor can confirm a result.",
 }
+ONLINE_DOWN = {
+    "fr": "Le service d'IA en ligne n'est pas disponible pour le moment (vérifiez la clé dans .env).",
+    "en": "The online AI service is not available right now (check the key in .env).",
+}
 SEE_CARDIOLOGIST = {
     "fr": "Comme le résultat est anormal, je vous conseille d'en parler à un cardiologue.",
     "en": "As the result is abnormal, I advise you to talk to a cardiologist.",
@@ -261,6 +265,7 @@ def chat(question, analysis=None, history=None):
                    "Question : " + question)
     answer = None
     sources = []
+    online_down = False
     try:
         reply = llm.chat_json(prompts.CHAT, user_prompt, max_tokens=MAX_TOKENS)
         metrics["prompt_tokens"] = reply["prompt_tokens"]
@@ -269,10 +274,15 @@ def chat(question, analysis=None, history=None):
         allowed_text = facts_part + " " + question + " " + chunks_text(chunks)
         if text_answer != "" and not answer_problems(text_answer, allowed_text):
             answer, sources = cited_sources(text_answer, reply["content"].get("sources_used"), chunks)
+    except llm.LLMUnavailable:
+        online_down = True    # the online LLM cannot answer (key refused, no network): the page says so
     except Exception:
-        pass    # the LLM is down or did not give JSON: the code answers
+        pass                  # the local LLM is down or did not give JSON: the code answers from the analysis
     if answer is None:
-        answer = safe_answer(lang, audio)
+        if online_down:
+            answer = ONLINE_DOWN[lang]
+        else:
+            answer = safe_answer(lang, audio)
         metrics["safe_answer"] = True
 
     # 4. what the code always adds: a cardiologist for an abnormal result, the emergency number for alarm symptoms

@@ -21,6 +21,17 @@ SR = 2000
 from fastapi.testclient import TestClient  # noqa: E402
 TestClient.__test__ = False
 
+from agents import llm  # noqa: E402
+
+
+@pytest.fixture(autouse=True)
+def no_llm_settings(monkeypatch):
+    # every test starts in the local mode (no key), whatever the settings of the computer: the tests never call an
+    # online LLM and never need a key (the tests of the online mode set their own fake key)
+    for name in ["LLM_PROVIDER", "LLM_API_KEY", "LLM_BASE_URL", "LLM_MODEL"]:
+        monkeypatch.setattr(llm, name, "")
+    monkeypatch.setattr(llm, "_online", {"checked_at": 0.0, "ready": False, "model": None})
+
 
 def make_wav(seconds=6.0, kind="heart", sr=SR):
     # a small wav in memory (bytes): "heart" = a 60 Hz sine with beats + noise, "silent" = zeros,
