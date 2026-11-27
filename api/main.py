@@ -60,7 +60,8 @@ app = FastAPI(title="api-gateway", description="Service 5 : point d'entrée uniq
 @app.get("/")
 def home():
     # the home page = the HTML page in index.html (the /docs test page still exists)
-    return FileResponse(os.path.join(HERE, "index.html"))
+    # no-store: the browser always takes the latest page (an old copy kept the old chat display)
+    return FileResponse(os.path.join(HERE, "index.html"), headers={"Cache-Control": "no-store"})
 
 
 def llm_provider():
