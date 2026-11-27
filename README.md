@@ -61,7 +61,7 @@ the fine-tuned GGUF is in `llm_server/models/`). Retrain all the models: `venv\S
 |---|---|---|
 | LLM | Groq (keys `gsk_...`) or xAI Grok (keys `xai-...`), OpenAI-style API | Ollama in the container `llm-server`: `qwen2.5:3b-instruct`, or `cardio-llm` (our fine-tune) |
 | Start | `scripts\start_online_mode.ps1` → 5 containers | `scripts\start_local_mode.ps1` → the 6 containers |
-| Speed (Farah's PC) | report **~10 s**, chat answer **~1.5 s** | report **2–4 min**, chat answer **~1 min** |
+| Speed (Farah's PC) | report **~10 s**, chat answer **~1.5 s** | report **2–7 min**, chat answer **1–2 min** |
 | What leaves the PC | the question and the numbers of the analysis (prediction, probabilities, scores of the models), sent to the provider; **never the audio, never the file name** | nothing |
 | Page footer | « Mode en ligne : … » | « Mode local : rien ne quitte votre ordinateur. » |
 
@@ -100,9 +100,9 @@ nothing is downloaded again. `-Model cardio-llm` uses the fine-tuned model. The 
 
 | | Online (Groq, `openai/gpt-oss-120b`) | Local (Ollama, `qwen2.5:3b-instruct` on the CPU) |
 |---|---|---|
-| audio result (5 ONNX models + ensemble) | 0.2 s | ~1 s |
-| report of the 3 agents | **9.6 s** (validated by the Auditeur, 0 retry, 4 sources) | **140–219 s** (validated; 4 reports logged in MLflow) |
-| chat « Dois-je voir un médecin ? » | **1.4 s** (the numbers of the analysis, a cardiologist, SAMU 190, 4 sources) | **~70 s** |
+| audio result (5 ONNX models + ensemble) | 0.2 s | 1–10 s (the CPU is busy with the LLM) |
+| report of the 3 agents | **9.6 s** (validated by the Auditeur, 0 retry, 4 sources) | **421 s** with the final code: the 3B model wrote a disclaimer without « médecin » and « tous les modèles sont d'accord » for 5 of 6, the Auditeur refused it twice → the safe report written by the code (earlier today: 140–219 s, validated) |
+| chat « Dois-je voir un médecin ? » | **1.4 s** (the numbers of the analysis, a cardiologist, SAMU 190, 4 sources) | **121 s** (an Ollama answer with the numbers, a cardiologist, SAMU 190; earlier: 70 s) |
 | chat « comment faire une pizza ? » | the fixed refusal, 0 s (keywords: no LLM call) | the same |
 
 Both modes were started with their script; the gateway `/health` (so the footer of the page) said `groq` / `ollama`;
