@@ -31,7 +31,7 @@ flowchart LR
 | 2 | `vector-db` | `qdrant/qdrant:v1.20.2` (`vector-db.Dockerfile`) | embeddings of the RAG documents, cosine search |
 | 3 | `audio-engine` | Python 3.12 multi-stage (`audio-engine.Dockerfile`) | preprocessing (2000 Hz, 5 s, Mel, MFCC), the 5 ONNX models + ensemble, MLflow inference logs |
 | 4 | `agent-orchestrator` | Python 3.12 multi-stage (`agent-orchestrator.Dockerfile`) | LangGraph graph of the 3 agents, RAG, Pydantic guardrails, MLflow LLM metrics |
-| 5 | `api-gateway` | Python 3.12 multi-stage (`api-gateway.Dockerfile`) | the only entry point: `/analyze_pcg` + the web page |
+| 5 | `api-gateway` | Python 3.12 multi-stage (`api-gateway.Dockerfile`) | the only entry point: `/analyze_pcg`, `/report`, `/chat` + the web page (analysis + chat) |
 | 6 | `mlflow-server` | `ghcr.io/mlflow/mlflow:v2.22.4` (`mlflow-server.Dockerfile`) | experiment tracking, Model Registry, inference traceability |
 
 ## 2. How to run
@@ -45,7 +45,8 @@ docker compose ps                          # all "healthy"
 docker compose run --rm agent-orchestrator python -m rag_engine.ingest      # index the RAG documents (once)
 ```
 
-Then open **http://localhost:8000** (drop a `.wav`), MLflow on **http://localhost:5000**. A check with real wavs of
+Then open **http://localhost:8000** (drop a `.wav`, then ask your questions in the chat), MLflow on
+**http://localhost:5000**. A check with real wavs of
 the test set: `venv\Scripts\python scripts\check_platform.py` (audio engine) or `... 1 --agents` (whole pipeline).
 Settings: a `.env` file next to `docker-compose.yml`, e.g. `LLM_MODEL=cardio-llm` once the fine-tuned GGUF is in
 `llm_server/models/`. Retrain all the models: `venv\Scripts\python audio_engine\train_all.py`.
@@ -192,8 +193,10 @@ To use it: download the 2 files, unzip the adapter in `llm_finetuning/outputs/ca
 - **Graph** (`graph.py`, LangGraph `StateGraph`): **Analyste** (reads the audio result: prediction, probability,
   agreement of the models, warnings; writes a short analysis and the RAG query) → **Cardiologue RAG** (searches the
   clinical documents and explains the result using only these passages, with citations `[n]`) → **Auditeur**
-  (rules + the LLM: Pydantic schema, coherent with the audio prediction, no definitive diagnosis, no prescription,
-  sources cited, a disclaimer that sends to a doctor). Not approved → **one retry** of the Cardiologue with the issues,
+  (the code checks the Pydantic schema, the coherence with the audio prediction, forbidden words, the sources and
+  the doctor; the LLM answers 1 true/false question per check — definitive diagnosis? prescription? recommends a
+  doctor? — and the code decides; asking a 3B model for "approved + a list of issues" made it list the checks that
+  passed as problems and refuse good reports). Not approved → **one retry** of the Cardiologue with the issues,
   then a **safe fallback report** written by the code. LLM down → the fallback report too.
 - **Schemas** (`schemas.py`, Pydantic v2): `AudioResult` (the audio-engine JSON, checked at the entry of
   `/orchestrate`) and `CardioReport`: `prediction` (`normal`/`abnormal`), `probability_abnormal`, `model`,
@@ -207,18 +210,56 @@ To use it: download the 2 files, unzip the adapter in `llm_finetuning/outputs/ca
 - `llm.py`: a thin wrapper of Ollama's `/api/chat` (`format: "json"`, temperature 0.2) → the tests replace it by a fake.
   `prompts.py`: the 3 system prompts in French.
 
+## 8b. Chat with the assistant — `agents/chat.py` + `POST /chat`
+
+After the analysis of a wav, the right column of the page is a chat: *« Dois-je voir un médecin ? »*, *« Que
+signifie la probabilité ? »*, *« Pourquoi les modèles ne sont pas d'accord ? »*, *« C'est quoi un souffle
+cardiaque ? »*. The page keeps the last analysis in a JS variable and sends it with each question (no database):
+
+    page --{question, analysis, history (last 6 messages)}--> gateway POST /chat --> orchestrator POST /chat --> ChatAnswer
+
+| Step | What the code does |
+|---|---|
+| 1. Off-topic guardrail | `is_on_topic()`: lists of keywords first (heart, souffle, B1/B2, médecin, wav, résultat, probabilité, modèle, heart, murmur, doctor… → on topic; pizza, recette, recipe, cupcake, football, politique, devoirs, code… → off topic); only the unclear questions go to a short LLM classification (`{"on_topic": true/false}`). Off topic → a **fixed refusal written in the code** (French or English, like the question), `on_topic = false`, no RAG search, no answer by the LLM |
+| 2. No wav yet | a question about "mon son / mon résultat…" → asks to upload a `.wav` first; general heart questions are still answered |
+| 3. Answer | RAG search (`category="clinique"`, k = 4) + the facts of the analysis (official prediction, probability, the answer of every model and of the ensemble, warning, summary of the agents' report) → the LLM writes a short JSON answer (`num_predict` 300, ≤ 120 words) with citations `[n]` |
+| 4. Safety checks (code) | the Auditeur's forbidden words (diagnosis, prescription, doses) and **any decimal number that is not in the analysis** → the answer is replaced by a safe answer written by the code from the analysis; abnormal result → "consult a cardiologist" is added if missing; chest pain / fainting / strong shortness of breath → the emergency number (SAMU 190) first; every answer has the disclaimer "only a doctor can confirm" |
+
+`ChatRequest` (question 1–1000 characters, analysis or `null`, history: only the last 6 messages are kept) and
+`ChatAnswer` (answer, on_topic, sources [title, page], disclaimer) are Pydantic schemas (`schemas.py`). Each question
+is logged in the MLflow experiment `llm_inference` (run `chat`: latency, on_topic, how it was decided, tokens, number
+of sources, safe answer or not; never the text). The gateway forwards `/chat` like `/analyze_pcg` (503 if the
+orchestrator is down, its 4xx message passed through, timeout 300 s).
+
+**The page in 2 steps** (so nobody waits 10 minutes for the first result): `POST /analyze_pcg?agents=false` gives the
+audio result in ~1 s (shown at once, and the chat can use it), then `POST /report` with it gives the agents' report
+when the LLM has finished. `POST /analyze_pcg` without the parameter still returns both (for API users).
+
+Test on Farah's PC (real test wav, 8 s): the audio result in a few seconds (Anormal, 96 %), the report of the agents
+**validated by the Auditeur**, *« Dois-je voir un médecin ? »* → a careful answer with the numbers of the analysis,
+a cardiologist, SAMU 190 and a source (~2–3 min on CPU), *« comment faire une pizza ? »* → the fixed refusal at once.
+(This report was made just before the "all the models agree" rule was added to the Auditeur: here 5 of the 6
+models agree, which the rule now sends back to the Cardiologue.)
+
+![The page with an analysis, the report and the chat](docs/page_analysis_and_chat.png)
+
+![The chat: an answer about the analysis and the off-topic refusal](docs/chat_answers.png)
+
 ## 9. Tests, coverage, CI/CD
 
 - `tests/test_audio.py` (signal transformations, features of each model, quality rules, `/predict`, MLflow logging
   never breaks a prediction), `tests/test_api.py` (gateway: 400, 503, forwarding, degraded mode when the agents are
   down), `tests/test_agents.py` (Pydantic valid/invalid, the Auditeur's rules, the graph with a fake LLM: happy path,
-  retry, fallback, LLM down, no file name sent to the LLM), `tests/test_rag.py` (cleaning, chunking, ingest and search
-  with a fake Qdrant, evaluation metrics). Wavs are generated in the tests (numpy + soundfile); every service is mocked.
+  retry, fallback, LLM down, no file name sent to the LLM), `tests/test_chat.py` (off-topic questions → the fixed
+  refusal with no LLM and no RAG call, answers about an abnormal analysis → doctor + sources, no wav → upload first,
+  diagnosis / prescription / invented number replaced, emergency number, schemas, gateway `/chat` forwarding + 503 +
+  422, the 2-step page routes), `tests/test_rag.py` (cleaning, chunking, ingest and search with a fake Qdrant,
+  evaluation metrics). Wavs are generated in the tests (numpy + soundfile); every service is mocked.
 - `pip install -r requirements-test.txt` (no TensorFlow), then
   `pytest --cov=audio_engine --cov=api --cov=agents --cov=rag_engine --cov-report=term-missing`.
 
-Result on Farah's PC: **70 tests passed, total coverage 90 %** (`agents/graph.py` 90 %, `api/main.py` 96 %,
-`audio_engine/main.py` 90 %, `rag_engine/ingest.py` 94 %, `agents/schemas.py` 100 %).
+Result on Farah's PC: **100 tests passed, total coverage 91 %** (`agents/chat.py` 94 %, `agents/graph.py` 91 %,
+`api/main.py` 97 %, `audio_engine/main.py` 90 %, `rag_engine/ingest.py` 94 %, `agents/schemas.py` 100 %).
 
 - **GitHub Actions** (`.github/workflows/mlops-ci-cd.yml`), at each push and pull request: job `tests` (Python 3.10,
   pytest + coverage, fails under 70 %, `coverage.xml` kept as an artifact), then job `build` (Docker images of the API

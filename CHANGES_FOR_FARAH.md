@@ -41,7 +41,16 @@ For each model, all the versions (yours, Zaineb's, mixes of the two) were run on
 - **3 agents**: Analyste (reads the numbers) → Cardiologue (explains with the RAG documents, with citations) →
   Auditeur (checks: no diagnosis, no prescription, sources, a doctor in the disclaimer). Pydantic checks the JSON.
 - **Fine-tuning QLoRA** (Google Colab, T4 GPU): Qwen 2.5 7B on 506 French examples → `cardio-llm` (GGUF 4-bit).
-- **Tests**: 70 tests, 90 % coverage, GitHub Actions at each push.
+- **Tests**: 100 tests, 91 % coverage, GitHub Actions at each push.
+
+## 3b. The chat with the assistant (branch `chat-feature`)
+
+- **New page** (http://localhost:8000): white and blue, the analysis on the left, a chat on the right. The audio
+  result appears in ~1 second; the agents' report arrives a few minutes later; the chat works meanwhile.
+- **You can ask** about your wav ("Dois-je voir un médecin ?", "Que signifie la probabilité ?") or about the heart
+  ("C'est quoi un souffle ?"). Off-topic questions ("comment faire une pizza ?") get a polite refusal.
+- **The Auditeur was fixed**: the small LLM now answers simple true/false questions and the code decides, so good
+  reports are approved instead of being replaced by the backup report.
 
 ## 4. Questions the prof may ask (and short answers)
 
@@ -63,6 +72,15 @@ For each model, all the versions (yours, Zaineb's, mixes of the two) were run on
 - **How do the agents avoid inventing things?** The Cardiologue can only use the RAG passages and must cite them; the
   Auditeur checks the report (rules + LLM); the numbers come from the audio engine, not from the LLM; if the report
   is still not approved after 1 retry, the code writes a safe report.
+- **How does the off-topic filter work?** First lists of keywords (cœur, souffle, médecin, wav, résultat… → yes;
+  pizza, recette, football, code… → no), so it is fast and always gives the same answer. Only unclear questions are
+  sent to the LLM with a yes/no question. The refusal text is written in the code, never by the LLM.
+- **Why can't the chat invent numbers?** The numbers come from the analysis JSON sent by the page; the code gives
+  them to the LLM, and if the answer contains a decimal number that is not in the analysis, the code replaces the
+  answer by a safe one written from the analysis.
+- **Why does it never give a diagnosis?** The prompt forbids it, and the code checks the answer with the Auditeur's
+  list of forbidden words (diagnosis, drugs, doses); a refused answer is replaced, and every answer says that only a
+  doctor can confirm (and gives the emergency number for chest pain or fainting).
 - **Where are the data protected ("sans fuite de données")?** Everything runs in our Docker network (no external
   API), the LLM never receives the audio or the file name, and MLflow stores only numbers.
 

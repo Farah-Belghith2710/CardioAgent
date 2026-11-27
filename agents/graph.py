@@ -255,6 +255,11 @@ def check_rules(report, facts):
     for word in FORBIDDEN:
         if word in text:
             issues.append("diagnostic définitif ou prescription interdit : « " + word.strip() + " »")
+    # the LLM must not say that all the models agree when they do not (a 3B model wrote "accord parfait" for 5 of 6)
+    if facts["n_agree"] < facts["n_models"]:
+        if re.search(r"accord[^.]{0,40}parfait|parfaitement d'accord|tous les modèles|unanim", text):
+            issues.append("le rapport dit que tous les modèles sont d'accord, alors que seulement "
+                          + str(facts["n_agree"]) + " sur " + str(facts["n_models"]) + " donnent la même réponse")
     if len(report["sources"]) == 0:
         issues.append("aucune source citée")
     doctor = False

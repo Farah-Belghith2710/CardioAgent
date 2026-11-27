@@ -140,6 +140,16 @@ def test_rules_find_diagnosis_prescription_and_missing_sources(audio_result):
     assert "aucune source citée" in issues
 
 
+def test_rules_find_a_false_agreement_of_the_models(audio_result):
+    # in audio_result, 4 of the 5 models say abnormal: "all the models agree" is false
+    report = valid_report()
+    report["summary"] = "Le son est classé anormal : l'accord entre les modèles est parfait."
+    issues = graph.check_rules(report, graph.compute_facts(audio_result))
+    assert any("4 sur 5" in issue for issue in issues)
+    report["summary"] = "Le son est classé anormal : l'outil n'est pas parfait, 4 modèles sur 5 sont d'accord."
+    assert graph.check_rules(report, graph.compute_facts(audio_result)) == []
+
+
 def test_rules_find_a_summary_that_contradicts_the_audio(audio_result):
     report = valid_report()
     report["summary"] = "Le son de votre cœur est tout à fait normal et rassurant."

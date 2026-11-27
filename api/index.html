@@ -25,7 +25,7 @@
     .status.offline .dot { background: #ef4444; }
 
     main { max-width: 1280px; margin: 0 auto; padding: 20px 24px; }
-    .layout { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+    .layout { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 20px; align-items: start; }
     @media (max-width: 900px) { .layout { grid-template-columns: 1fr; } }
 
     .card { border: 1px solid var(--border); border-radius: 10px; background: #fff; padding: 16px 18px; margin-bottom: 16px; }
@@ -72,7 +72,7 @@
 
     .table-wrap { overflow-x: auto; }
     table { border-collapse: collapse; width: 100%; font-size: 13px; }
-    th, td { padding: 7px 8px; border-bottom: 1px solid var(--border); text-align: left; white-space: nowrap; }
+    th, td { padding: 6px 6px; border-bottom: 1px solid var(--border); text-align: left; white-space: nowrap; }
     th { color: var(--muted); font-weight: 600; background: var(--bg-soft); }
     tr.best td { background: var(--blue-tint); font-weight: 600; }
     .note { color: var(--muted); font-size: 12px; margin-top: 8px; }
@@ -341,7 +341,7 @@
       const panel = card("Les modèles pour ce son", [makeBadge("Scores MLflow · validation + test", "blue")]);
       const table = document.createElement("table");
       const header = document.createElement("tr");
-      for (const name of ["Modèle", "Ce son", "Proba.", "Recall val.", "Précision val.", "F1 val.", "Recall test", "F1 test"]) {
+      for (const name of ["Modèle", "Ce son", "Proba.", "Recall val.", "Préc. val.", "F1 val.", "Recall test", "F1 test"]) {
         const th = document.createElement("th");
         th.textContent = name;
         header.append(th);
