@@ -55,8 +55,9 @@ For each model, all the versions (yours, Zaineb's, mixes of the two) were run on
 ## 3c. The online LLM with an API key (branch `online-llm`)
 
 - **Every day (online mode)**: your key goes in the file `.env` (`LLM_API_KEY=...`), never in a chat or a commit.
-  Start with `powershell -ExecutionPolicy Bypass -File scripts\start_online_mode.ps1`. The reports and the chat
-  answers come in a few seconds instead of minutes. Groq keys start with `gsk_`, xAI keys with `xai-`: the code
+  Start with `powershell -ExecutionPolicy Bypass -File scripts\start_online_mode.ps1`. Tested with your Groq key
+  (model `openai/gpt-oss-120b`): a report in ~10 s and a chat answer in ~1.5 s, instead of 2–4 min and ~1 min with
+  the local LLM. Groq keys start with `gsk_`, xAI keys with `xai-`: the code
   finds the provider alone.
 - **Demo for the prof (local mode, the version of the PDF)**:
   `powershell -ExecutionPolicy Bypass -File scripts\start_local_mode.ps1` starts the 6 containers with Ollama:

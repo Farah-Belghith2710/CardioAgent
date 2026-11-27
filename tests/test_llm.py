@@ -64,7 +64,8 @@ def test_the_request_is_openai_style_and_the_json_is_read(monkeypatch, groq):
     assert sent["url"] == "https://api.groq.com/openai/v1/chat/completions"
     assert sent["headers"] == {"Authorization": "Bearer " + KEY} and sent["timeout"] == 60
     body = sent["json"]
-    assert body["model"] == "llama-3.3-70b-versatile" and body["temperature"] == 0.2 and body["max_tokens"] == 300
+    assert body["model"] == "llama-3.3-70b-versatile" and body["temperature"] == 0.2
+    assert body["max_tokens"] == 1024                     # at least 1024 online: room for the models that "think"
     assert body["response_format"] == {"type": "json_object"}
     assert body["messages"] == [{"role": "system", "content": "system prompt"}, {"role": "user", "content": "user prompt"}]
     assert result["content"] == {"answer": "bonjour"} and result["prompt_tokens"] == 50 and result["eval_tokens"] == 20
@@ -137,7 +138,7 @@ def test_is_ready_is_false_with_a_refused_key(monkeypatch):
     monkeypatch.setattr(llm, "LLM_API_KEY", KEY)
     monkeypatch.setattr(llm.requests, "get", lambda url, **kwargs: FakeResponse(401, {}))
     assert llm.is_ready() is False
-    assert llm.model_name() == "llama-3.3-70b-versatile"          # the first favourite, if the list is unknown
+    assert llm.model_name() == "openai/gpt-oss-120b"              # the first favourite, if the list is unknown
 
 
 # ==================== what the user sees when the online LLM is down ====================

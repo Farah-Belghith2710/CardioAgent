@@ -73,8 +73,8 @@ services:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/health')"]
       interval: 10s
       timeout: 5s
-      retries: 12
-      start_period: 180s                               # the warm-up of the 5 models at start (main.py)
+      retries: 30                                      # a busy PC: wait up to 5 more minutes before "unhealthy"
+      start_period: 300s                               # the warm-up of the 5 models at start (main.py)
     networks: [cardio-net]
     restart: unless-stopped
 
@@ -112,8 +112,8 @@ services:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8002/health')"]
       interval: 10s
       timeout: 10s
-      retries: 12
-      start_period: 180s                               # loading LangGraph + the embedding model takes time on our PC
+      retries: 30
+      start_period: 300s                               # loading LangGraph + the embedding model takes time on our PC
     networks: [cardio-net]
     restart: unless-stopped
 
@@ -155,7 +155,7 @@ services:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/health')"]
       interval: 10s
       timeout: 5s
-      retries: 12
+      retries: 30
       start_period: 300s                               # the first start checks the database (~4 min on our PC)
     networks: [cardio-net]
     restart: unless-stopped

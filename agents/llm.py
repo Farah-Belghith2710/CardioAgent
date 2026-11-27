@@ -31,11 +31,12 @@ DEFAULT_BASE_URLS = {"groq": "https://api.groq.com/openai/v1", "xai": "https://a
 OLLAMA_DEFAULT_MODEL = "qwen2.5:3b-instruct"                           # "cardio-llm" = our fine-tuned model
 # fast models with a JSON mode that answer well in French, the best first: the first one the account has is used
 PREFERRED_MODELS = {
-    "groq": ["llama-3.3-70b-versatile", "meta-llama/llama-4-maverick-17b-128e-instruct",
-             "meta-llama/llama-4-scout-17b-16e-instruct", "llama-3.1-8b-instant", "openai/gpt-oss-120b"],
+    # groq: tested on Farah's account (27/11/2026): gpt-oss-120b answers in ~0.8 s, valid JSON, good French
+    "groq": ["openai/gpt-oss-120b", "llama-3.3-70b-versatile", "qwen/qwen3.8-27b", "qwen/qwen3-32b",
+             "llama-3.1-8b-instant", "openai/gpt-oss-20b"],
     "xai": ["grok-4-fast-non-reasoning", "grok-3-mini", "grok-3-mini-fast", "grok-4-fast", "grok-4"],
 }
-NOT_CHAT_MODELS = ["whisper", "tts", "guard", "embed", "image", "vision", "audio"]    # in the list, but not for a chat
+NOT_CHAT_MODELS = ["whisper", "tts", "orpheus", "guard", "embed", "image", "vision", "audio"]    # in the list, but not for a chat
 NAMES = {"groq": "Groq", "xai": "xAI", "ollama": "Ollama"}
 
 
@@ -143,7 +144,9 @@ def chat_json_online(system_prompt, user_prompt, max_tokens=None):
         "messages": [{"role": "system", "content": system_prompt},
                      {"role": "user", "content": user_prompt}],
         "temperature": 0.2,
-        "max_tokens": max_tokens or 1024,
+        # at least 1024: some online models "think" before answering and the thinking counts in max_tokens
+        # (the small limit of the chat, 300, is only for the slow local CPU)
+        "max_tokens": max(max_tokens or 0, 1024),
         "response_format": {"type": "json_object"},     # JSON mode: the answer is valid JSON
     }
     start = time.perf_counter()

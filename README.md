@@ -61,7 +61,7 @@ the fine-tuned GGUF is in `llm_server/models/`). Retrain all the models: `venv\S
 |---|---|---|
 | LLM | Groq (keys `gsk_...`) or xAI Grok (keys `xai-...`), OpenAI-style API | Ollama in the container `llm-server`: `qwen2.5:3b-instruct`, or `cardio-llm` (our fine-tune) |
 | Start | `scripts\start_online_mode.ps1` → 5 containers | `scripts\start_local_mode.ps1` → the 6 containers |
-| Speed (Farah's PC) | <!-- ONLINE_TIMES --> | <!-- LOCAL_TIMES --> |
+| Speed (Farah's PC) | report **~10 s**, chat answer **~1.5 s** | report **2–4 min**, chat answer **~1 min** |
 | What leaves the PC | the question and the numbers of the analysis (prediction, probabilities, scores of the models), sent to the provider; **never the audio, never the file name** | nothing |
 | Page footer | « Mode en ligne : … » | « Mode local : rien ne quitte votre ordinateur. » |
 
@@ -73,7 +73,10 @@ the fine-tuned GGUF is in `llm_server/models/`). Retrain all the models: `venv\S
 - **Settings** (`.env.example`): `LLM_PROVIDER` (empty = guessed from the key: `gsk_` → groq, `xai-` → xai, no key →
   ollama), `LLM_API_KEY`, `LLM_BASE_URL` (empty = `https://api.groq.com/openai/v1` / `https://api.x.ai/v1`),
   `LLM_MODEL` (empty = the first model of a short list of fast JSON-mode models that the account has, read once from
-  `GET /models` with the key: <!-- DEFAULT_MODEL -->).
+  `GET /models` with the key: on Farah's Groq account **`openai/gpt-oss-120b`** (the Llama models are not offered
+  there); then `llama-3.3-70b-versatile`, `qwen/qwen3.8-27b`, … For xAI: `grok-4-fast-non-reasoning`, then
+  `grok-3-mini`). Online, `max_tokens` is at least 1024 because some models "think" before answering (the limit
+  of 300 tokens of the chat is only for the slow local CPU).
 - **Code** (`agents/llm.py`): the same `chat_json()` for both modes, so the agents, the chat and the tests did not
   change. Online = `POST <base URL>/chat/completions`, `Authorization: Bearer <key>`, `temperature` 0.2,
   `response_format: json_object`, timeout 60 s, 1 retry after 2 s on 429 / 5xx, tokens from `usage`. Key refused or no
@@ -93,7 +96,18 @@ wins over `.env`) and starts the compose profile `local-llm`; the model stays in
 nothing is downloaded again. `-Model cardio-llm` uses the fine-tuned model. The online script stops `llm-server`
 (stopped, not deleted). The footer of the page says which mode is running.
 
-<!-- MODE_TEST -->
+**Tested on Farah's PC (27/11/2026)** with the same real test wav (8 s, abnormal), through the gateway like the page:
+
+| | Online (Groq, `openai/gpt-oss-120b`) | Local (Ollama, `qwen2.5:3b-instruct` on the CPU) |
+|---|---|---|
+| audio result (5 ONNX models + ensemble) | 0.2 s | ~1 s |
+| report of the 3 agents | **9.6 s** (validated by the Auditeur, 0 retry, 4 sources) | **140–219 s** (validated; 4 reports logged in MLflow) |
+| chat « Dois-je voir un médecin ? » | **1.4 s** (the numbers of the analysis, a cardiologist, SAMU 190, 4 sources) | **~70 s** |
+| chat « comment faire une pizza ? » | the fixed refusal, 0 s (keywords: no LLM call) | the same |
+
+Both modes were started with their script; the gateway `/health` (so the footer of the page) said `groq` / `ollama`;
+the MLflow `llm_inference` runs show `llm_provider` and `llm_model`, and no value looks like a key. Other Groq models
+of the account, same French JSON question: `qwen/qwen3.8-27b` 0.4 s, `openai/gpt-oss-20b` 0.8 s (valid JSON too).
 
 ## 3. Data — `notebooks/01_eda_data_wrangling.ipynb`
 
