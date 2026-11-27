@@ -74,6 +74,7 @@ def test_refusal_is_in_the_language_of_the_question(monkeypatch, fake_rag):
     monkeypatch.setattr(llm, "chat_json", FakeLLM())
     assert chat.chat("How do I make a cupcake recipe?")[0]["answer"] == chat.REFUSAL["en"]
     assert chat.chat("Comment faire une pizza ?")[0]["answer"] == chat.REFUSAL["fr"]
+    assert chat.chat("Give me a cupcake recipe")[0]["answer"] == chat.REFUSAL["en"]
 
 
 def test_unclear_question_is_decided_by_the_llm(monkeypatch, fake_rag):

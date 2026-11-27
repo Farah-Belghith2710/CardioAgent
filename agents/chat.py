@@ -73,7 +73,8 @@ DOCTOR_WORDS = ["medecin", "cardiologue", "doctor", "cardiologist", "urgence", "
 FRENCH_WORDS = ["le", "la", "les", "est", "que", "quoi", "comment", "mon", "ma", "mes", "je", "dois", "un", "une",
                 "des", "pourquoi", "ce", "cette", "du", "de", "il", "elle", "et", "pas", "c'est", "qu'est"]
 ENGLISH_WORDS = ["the", "is", "what", "how", "my", "do", "does", "should", "i", "you", "can", "why", "this", "it",
-                 "and", "not", "are", "am", "to", "of"]
+                 "and", "not", "are", "am", "to", "of", "give", "me", "please", "tell", "make", "an", "your", "with",
+                 "for", "about", "explain", "recipe", "who", "where", "when"]
 
 
 def simplify(text):
