@@ -294,10 +294,4 @@ the same files run much faster.
 
 ## 13. Team
 
-- **Farah Belghith** — data fusion, EDA, the first version of every model notebook (tree, SVM, CNN, ResNet50 /
-  VGG16), MLflow, ONNX, the services and the platform.
-- **Zaineb** (`zaineb1802`) — the 72 summary features, cross-validated settings, early stopping and Dense 256 for
-  transfer learning, the patient-leakage check, the test and smoke-test ideas (details and credits:
-  [`MERGE_NOTES.md`](MERGE_NOTES.md)).
-
-Teacher: Dr. Mehrez Boulares — Data Mining & Machine Learning, ENSIT, 3G Math, 2026-2027.
+- **Farah Belghith** and **Zaineb Darchem** 
