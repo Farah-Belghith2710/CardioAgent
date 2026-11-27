@@ -2,7 +2,7 @@
 
 **Containerized micro-service platform (Docker), MLOps, LLM fine-tuning, RAG and multi-agent AI for heart-sound
 (PCG) analysis** — mini-project *Data Mining & Machine Learning*, ENSIT, section 3G Math, 2026-2027
-(teacher: Dr. Mehrez Boulares). Team: **Farah Belghith** and **Zaineb Darchem**; how the two works were merged:
+Team: **Zaineb Darchem** and **Farah Belghith**; how the two works were merged:
 [`MERGE_NOTES.md`](MERGE_NOTES.md).
 
 A `.wav` heart sound goes in; out comes (1) the answer of 5 machine-learning models + an ensemble, run with ONNX
