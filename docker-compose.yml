@@ -18,6 +18,8 @@ services:
   # only in the local mode (profile "local-llm"): docker compose --profile local-llm up -d
   llm-server:
     profiles: ["local-llm"]
+    restart: "no"                                      # never by itself: only scripts/start_local_mode.ps1 starts it
+                                                       # (in the online mode its 2 GB model would slow the whole PC)
     build:
       context: .
       dockerfile: docker/llm-server.Dockerfile
@@ -37,7 +39,6 @@ services:
       retries: 240                                     # the first download of the model can take a while
       start_period: 30s
     networks: [cardio-net]
-    restart: unless-stopped
 
   # ---------- Service 2: the vector database of the RAG (Qdrant) ----------
   vector-db:
@@ -96,6 +97,7 @@ services:
       LLM_TIMEOUT: "600"
       MLFLOW_TRACKING_URI: http://mlflow-server:5000
       RAG_DOCS_FOLDER: /docs
+      RAG_WARMUP: "1"                                  # load the embedding model of the RAG at start (agents/main.py)
     volumes:
       - ./article for rag:/docs:ro                    # the RAG documents (read only), for rag_engine.ingest
     ports:

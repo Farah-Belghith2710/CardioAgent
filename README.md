@@ -94,7 +94,10 @@ powershell -ExecutionPolicy Bypass -File scripts\start_online_mode.ps1    # back
 The local script sets `LLM_PROVIDER=ollama` only for that terminal (no file to edit: a value typed in the terminal
 wins over `.env`) and starts the compose profile `local-llm`; the model stays in the Docker volume `ollama-data`, so
 nothing is downloaded again. `-Model cardio-llm` uses the fine-tuned model. The online script stops `llm-server`
-(stopped, not deleted). The footer of the page says which mode is running.
+(stopped, not deleted). The footer of the page says which mode is running. `llm-server` never starts by itself
+(`restart: "no"`): on a PC with little free RAM its 2 GB model slowed down the online mode too (a report took 171 s
+instead of 7 s), and the orchestrator loads the RAG embedding model at start (`RAG_WARMUP=1`), so the first question
+after a restart is fast.
 
 **Tested on Farah's PC (27/11/2026)** with the same real test wav (8 s, abnormal), through the gateway like the page:
 

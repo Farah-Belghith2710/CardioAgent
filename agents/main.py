@@ -19,6 +19,7 @@ from agents.chat import chat
 from agents.graph import run_agents
 from agents.schemas import AudioResult, ChatAnswer, ChatRequest
 from rag_engine.ingest import QDRANT_URL
+from rag_engine.search import get_model
 
 MLFLOW_TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI", "")
 os.environ.setdefault("MLFLOW_HTTP_REQUEST_MAX_RETRIES", "2")      # if MLflow is down: give up after 2 retries
@@ -69,6 +70,16 @@ def log_chat(metrics):
               "prompt_tokens": metrics.get("prompt_tokens", 0), "eval_tokens": metrics.get("eval_tokens", 0),
               "n_sources": metrics.get("n_sources", 0), "safe_answer": int(bool(metrics.get("safe_answer")))}
     log_to_mlflow("chat", {"guardrail": metrics.get("guardrail", "")}, values)
+
+
+# warm-up (only in the container: RAG_WARMUP=1): load the embedding model of the RAG once, at start. Without it, the
+# first report or chat question waits for this model (on a busy PC: more than 2 minutes, even in the online mode)
+if os.getenv("RAG_WARMUP", "") == "1":
+    try:
+        list(get_model().embed(["bruit du coeur"]))
+        print("RAG warm-up: the embedding model is loaded")
+    except Exception as error:
+        print("RAG warm-up failed (the first question will be slower):", error)
 
 
 app = FastAPI(title="agent-orchestrator",
