@@ -474,22 +474,10 @@
     }
 
     function addMessage(role, text, sources = [], extra = "") {
+      // the sources are not shown in the chat (only in the report): the citation numbers [1], [2]... are removed too
       const bubble = document.createElement("div");
       bubble.className = "msg " + role + (extra ? " " + extra : "");
-      bubble.append(text);
-      if (sources && sources.length) {
-        const box = document.createElement("div");
-        box.className = "sources";
-        box.append("Sources :");
-        const list = document.createElement("ol");
-        for (const s of sources) {
-          const li = document.createElement("li");
-          li.textContent = s.title + " (p. " + s.page + ")";
-          list.append(li);
-        }
-        box.append(list);
-        bubble.append(box);
-      }
+      bubble.append(text.replace(/\s*\[\d+(,\s*\d+)*\]/g, ""));
       messages.append(bubble);
       messages.scrollTop = messages.scrollHeight;
     }
