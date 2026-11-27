@@ -24,9 +24,18 @@
     .status.online .dot { background: #10b981; }
     .status.offline .dot { background: #ef4444; }
 
-    main { max-width: 1280px; margin: 0 auto; padding: 20px 24px; }
-    .layout { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 20px; align-items: start; }
-    @media (max-width: 900px) { .layout { grid-template-columns: 1fr; } }
+    main { max-width: 1840px; margin: 0 auto; padding: 20px 24px; }
+    /* 3 columns side by side: the analysis | the report of the agents | the chat */
+    .layout { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr) minmax(0, 0.95fr);
+              grid-template-areas: "analysis report chat"; gap: 20px; align-items: start; }
+    .col-analysis { grid-area: analysis; }
+    .col-report { grid-area: report; }
+    .chat { grid-area: chat; }
+    /* a smaller screen: the report goes under the analysis; a phone: 1 column */
+    @media (max-width: 1300px) { .layout { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+                                           grid-template-areas: "analysis chat" "report chat"; } }
+    @media (max-width: 900px) { .layout { grid-template-columns: 1fr; grid-template-areas: "analysis" "report" "chat"; } }
+    .placeholder { color: var(--muted); font-size: 14px; }
 
     .card { border: 1px solid var(--border); border-radius: 10px; background: #fff; padding: 16px 18px; margin-bottom: 16px; }
     .card h2 { font-size: 16px; margin: 0 0 12px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
@@ -89,7 +98,7 @@
     @keyframes spin { to { transform: rotate(360deg); } }
 
     /* the chat */
-    .chat { position: sticky; top: 16px; display: flex; flex-direction: column; height: calc(100vh - 140px); min-height: 480px; padding: 0; }
+    .chat { position: sticky; top: 16px; display: flex; flex-direction: column; height: calc(100vh - 120px); min-height: 480px; padding: 0; }
     .chat-head { padding: 14px 18px; border-bottom: 1px solid var(--border); }
     .chat-head h2 { margin: 0; }
     .chat-head p { margin: 4px 0 0; color: var(--muted); font-size: 13px; }
@@ -116,9 +125,8 @@
     .chat-input input:focus { outline: 2px solid #bfdbfe; border-color: var(--blue-2); }
     @media (max-width: 900px) { .chat { position: static; height: 560px; } }
 
-    footer { max-width: 1280px; margin: 0 auto; padding: 4px 24px 24px; color: var(--muted); font-size: 13px; display: flex; gap: 16px; flex-wrap: wrap; }
+    footer { max-width: 1840px; margin: 0 auto; padding: 0 24px 20px; font-size: 13px; display: flex; gap: 16px; justify-content: flex-end; }
     footer a { color: var(--blue); text-decoration: none; }
-    footer .disclaimer { flex: 1; min-width: 260px; }
   </style>
 </head>
 <body>
@@ -138,8 +146,8 @@
 
   <main>
     <div class="layout">
-      <!-- left column: the wav and its analysis -->
-      <section>
+      <!-- column 1: the wav and its analysis -->
+      <section class="col-analysis">
         <div class="card">
           <h2>1. Votre enregistrement</h2>
           <label id="drop" class="drop" for="file">
@@ -158,7 +166,10 @@
         <div id="result"></div>
       </section>
 
-      <!-- right column: the chat with the assistant -->
+      <!-- column 2: the report of the 3 agents -->
+      <section class="col-report" id="report-col"></section>
+
+      <!-- column 3: the chat with the assistant -->
       <section class="card chat">
         <div class="chat-head">
           <h2>2. Posez une question sur votre résultat</h2>
@@ -175,8 +186,6 @@
   </main>
 
   <footer>
-    <span class="disclaimer">⚠ Cet outil est une aide au dépistage : il ne remplace pas un médecin. En cas de douleur thoracique,
-      de malaise ou d'essoufflement important, appelez le SAMU (190 en Tunisie).</span>
     <a href="/docs">Documentation API</a>
     <a href="/health">État du service</a>
   </footer>
@@ -193,6 +202,7 @@
     const fileInput = document.getElementById("file");
     const drop = document.getElementById("drop");
     const result = document.getElementById("result");
+    const reportCol = document.getElementById("report-col");
     const analyzeButton = document.getElementById("analyze-btn");
     const messages = document.getElementById("messages");
     const questionInput = document.getElementById("question");
@@ -237,6 +247,7 @@
       analyzeButton.disabled = true;
       analyzeButton.textContent = "Analyse…";
       result.innerHTML = "";
+      reportCol.innerHTML = "";
       const form = new FormData();
       form.append("file", file);
       let audio = null;
@@ -255,12 +266,11 @@
       }
       analyzeButton.disabled = false;
       analyzeButton.textContent = "Analyser";
-      if (!audio) return;
+      if (!audio) { showReportPlaceholder(); return; }
 
       lastAnalysis = { audio: audio, report: null };
       showAudio(audio);
-      addMessage("assistant", "Votre enregistrement est analysé (« " + (audio.prediction === "normal" ? "normal" : "anormal") +
-                 " »). Vous pouvez me poser vos questions ; le rapport détaillé des agents arrive à gauche.");
+      addMessage("assistant", "Analyse prête : son « " + (audio.prediction === "normal" ? "normal" : "anormal") + " ». Je vous écoute !");
 
       // step 2: the report of the 3 agents
       const waiting = card("Rapport des agents IA");
@@ -270,7 +280,7 @@
       spin.className = "spinner";
       line.append(spin, "Les agents (Analyste → Cardiologue → Auditeur) rédigent le rapport… quelques minutes sur un ordinateur sans GPU.");
       waiting.append(line);
-      result.append(waiting);
+      reportCol.append(waiting);
       try {
         const response = await fetch("/report", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(audio) });
         const data = await response.json();
@@ -280,12 +290,12 @@
           lastAnalysis.report = data.report;
           showReport(data.report);
         } else {
-          showError("Rapport des agents indisponible", typeof data.detail === "string" ? data.detail : "Réessayez plus tard.");
+          showError("Rapport des agents indisponible", typeof data.detail === "string" ? data.detail : "Réessayez plus tard.", reportCol);
         }
       } catch (error) {
         if (number !== analysisNumber) return;
         waiting.remove();
-        showError("Rapport des agents indisponible", String(error));
+        showError("Rapport des agents indisponible", String(error), reportCol);
       }
     }
 
@@ -387,14 +397,23 @@
       const sources = report.sources.map(s => s.title + " (p. " + s.page + ")");
       rows.append(makeRow("Sources (RAG)", sources.length ? makeList(sources) : "—"));
       if (report.audit.issues.length) rows.append(makeRow("Audit", makeList(report.audit.issues)));
-      rows.append(makeRow("Avertissement", report.disclaimer));
       panel.append(rows);
-      result.append(panel);
+      reportCol.append(panel);
     }
 
+    function showReportPlaceholder() {
+      // before any analysis: the middle column says what will appear there
+      const panel = card("Rapport des agents IA");
+      const text = document.createElement("div");
+      text.className = "placeholder";
+      text.textContent = "Le rapport des 3 agents (Analyste → Cardiologue → Auditeur) apparaîtra ici après l'analyse.";
+      panel.append(text);
+      reportCol.append(panel);
+    }
+    showReportPlaceholder();
+
     // ---------- the chat ----------
-    addMessage("assistant", "Bonjour ! Je réponds à vos questions sur votre enregistrement (après l'analyse) et sur le cœur en général. " +
-               "Je ne pose pas de diagnostic : seul un médecin peut confirmer un résultat.");
+    addMessage("assistant", "Bonjour ! Une question sur votre résultat ou sur le cœur ?");
     const chips = document.getElementById("chips");
     for (const text of SUGGESTIONS) {
       const chip = document.createElement("button");
@@ -476,13 +495,13 @@
       panel.append(h2);
       return panel;
     }
-    function showError(title, text) {
+    function showError(title, text, where = result) {
       const box = document.createElement("div");
       box.className = "error";
       const strong = document.createElement("strong");
       strong.textContent = title;
       box.append(strong, text);
-      result.append(box);
+      where.append(box);
     }
     function makeBadge(text, color) {
       const badge = document.createElement("span");
