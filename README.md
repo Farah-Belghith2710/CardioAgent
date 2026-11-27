@@ -1,7 +1,8 @@
 # CardioAgent-Ops
 
 **Containerized micro-service platform (Docker), MLOps, LLM fine-tuning, RAG and multi-agent AI for heart-sound
-(PCG) analysis** — mini-project *Data Mining & Machine Learning*, ENSIT, section 3G Math, 2026-2027
+(PCG) analysis** 
+
 Team: **Zaineb Darchem** and **Farah Belghith**; how the two works were merged:
 [`MERGE_NOTES.md`](MERGE_NOTES.md).
 
