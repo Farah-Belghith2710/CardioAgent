@@ -40,11 +40,15 @@ def valid_report():
     }
 
 
+# the answer of the Auditeur LLM for a good report (1 true / false per check)
+AUDIT_OK = {"diagnostic_definitif": False, "prescription": False, "consulter_medecin": True, "probleme": ""}
+
+
 class FakeLLM:
     # replaces llm.chat_json: gives a prepared answer for each agent and remembers the prompts it received
     def __init__(self, cardiologue_answers=None, auditeur_answers=None):
         self.cardiologue_answers = cardiologue_answers or [GOOD_REPORT_TEXT]
-        self.auditeur_answers = auditeur_answers or [{"approved": True, "issues": []}]
+        self.auditeur_answers = auditeur_answers or [AUDIT_OK]
         self.prompts = []
         self.calls = {"analyste": 0, "cardiologue": 0, "auditeur": 0}
 
@@ -150,6 +154,24 @@ def test_rules_need_a_doctor_in_the_recommendations(audio_result):
     assert any("médecin" in issue for issue in issues)
 
 
+# ==================== the answer of the Auditeur LLM -> the issues (the code decides) ====================
+def test_auditor_llm_approves_a_good_report():
+    assert graph.llm_audit_issues(AUDIT_OK) == []
+
+
+def test_auditor_llm_finds_each_problem():
+    bad = {"diagnostic_definitif": True, "prescription": "true", "consulter_medecin": False,
+           "probleme": "le rapport affirme une sténose"}
+    issues = graph.llm_audit_issues(bad)
+    assert len(issues) == 3 and all("sténose" in issue for issue in issues)
+
+
+def test_auditor_llm_checklist_copied_in_the_text_is_not_a_problem():
+    # the bug seen with the 3B model: the checks that PASSED were written as problems -> only the true/false count
+    answer = dict(AUDIT_OK, probleme="aucun diagnostic définitif ; aucune prescription")
+    assert graph.llm_audit_issues(answer) == []
+
+
 # ==================== the graph with a fake LLM ====================
 def test_graph_happy_path(monkeypatch, fake_rag, audio_result):
     fake = FakeLLM()
@@ -164,8 +186,8 @@ def test_graph_happy_path(monkeypatch, fake_rag, audio_result):
 
 
 def test_graph_retries_once_after_the_auditor(monkeypatch, fake_rag, audio_result):
-    fake = FakeLLM(auditeur_answers=[{"approved": False, "issues": ["trop affirmatif"]},
-                                     {"approved": True, "issues": []}])
+    fake = FakeLLM(auditeur_answers=[dict(AUDIT_OK, diagnostic_definitif=True, probleme="trop affirmatif"),
+                                     AUDIT_OK])
     monkeypatch.setattr(llm, "chat_json", fake)
     report, metrics = graph.run_agents(audio_result)
     assert metrics["retries"] == 1 and report["audit"]["approved"] is True

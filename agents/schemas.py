@@ -67,6 +67,39 @@ class CardioReport(BaseModel):
         return value
 
 
+# ==================== the chat with the assistant (POST /chat) ====================
+class ChatMessage(BaseModel):
+    # 1 message of the conversation, sent back by the page so the assistant knows what was said before
+    role: Literal["user", "assistant"]
+    content: str = Field(max_length=4000)
+
+
+class ChatRequest(BaseModel):
+    question: str = Field(min_length=1, max_length=1000)
+    analysis: Optional[dict] = None          # the last result of /analyze_pcg kept by the page (None = no wav yet)
+    history: List[ChatMessage] = []          # the last messages (only the last 6 are kept)
+
+    @field_validator("question")
+    @classmethod
+    def question_not_empty(cls, value):
+        value = value.strip()
+        if value == "":
+            raise ValueError("the question is empty")
+        return value
+
+    @field_validator("history")
+    @classmethod
+    def keep_last_6(cls, value):
+        return value[-6:]
+
+
+class ChatAnswer(BaseModel):
+    answer: str = Field(min_length=1)
+    on_topic: bool                           # False = the question is not about the heart: polite refusal
+    sources: List[Source] = []               # the RAG passages used for the answer
+    disclaimer: str
+
+
 def risk_level(probability):
     # the level of risk comes from the probability of "abnormal" (never from the LLM)
     if probability < 0.3:

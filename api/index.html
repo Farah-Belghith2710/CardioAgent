@@ -1,538 +1,482 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="color-scheme" content="dark">
-  <title>Analyse PCG · CardioAgent-Ops</title>
+  <title>CardioAgent-Ops · Analyse des sons du cœur</title>
   <style>
-    /* ---------- colors: black theme + ONE main color (blue) ----------
-       green and red are only used to give information: green = OK / normal, red = error / abnormal */
+    /* medical look: white background, near-black text, blue accents, light-grey borders (no framework, no CDN) */
     :root {
-      --blue: #0A4DFF;          /* the main color (the "Blue" of the color wheel) */
-      --blue-hover: #2F66FF;
-      --blue-light: #6F9BFF;    /* lighter blue, easier to read on black */
-      --green: #5DB52C;
-      --red: #FF2D1F;
-
-      --bg: #000000;            /* the page: black */
-      --card: #0C0C0F;          /* the main card */
-      --surface: #141419;       /* the boxes inside the card */
-      --border: #24242C;
-      --text: #F5F5F7;
-      --muted: #9C9CA8;
+      --text: #111827; --muted: #6b7280; --border: #e5e7eb; --bg-soft: #f9fafb;
+      --blue: #1d4ed8; --blue-2: #2563eb; --blue-tint: #eff6ff;
+      --green: #047857; --green-tint: #ecfdf5; --red: #b91c1c; --red-tint: #fef2f2;
+      --amber: #92400e; --amber-tint: #fffbeb;
     }
-
     * { box-sizing: border-box; }
+    body { margin: 0; background: #ffffff; color: var(--text);
+           font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; font-size: 15px; line-height: 1.5; }
+    header { display: flex; align-items: center; gap: 12px; padding: 14px 24px; border-bottom: 1px solid var(--border); }
+    header svg { width: 34px; height: 34px; flex: none; }
+    header h1 { font-size: 20px; margin: 0; }
+    header .subtitle { margin: 0; color: var(--muted); font-size: 13px; }
+    .status { margin-left: auto; font-size: 13px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+    .status .dot { width: 9px; height: 9px; border-radius: 50%; background: #9ca3af; }
+    .status.online .dot { background: #10b981; }
+    .status.offline .dot { background: #ef4444; }
 
-    body {
-      margin: 0;
-      min-height: 100vh;
-      font-family: "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
-      color: var(--text);
-      background-color: var(--bg);
-      /* a very soft blue light above the card, the rest of the page stays black */
-      background-image: radial-gradient(700px 360px at 50% -120px, rgba(10, 77, 255, 0.20), transparent 70%);
-      background-repeat: no-repeat;
-    }
+    main { max-width: 1280px; margin: 0 auto; padding: 20px 24px; }
+    .layout { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+    @media (max-width: 900px) { .layout { grid-template-columns: 1fr; } }
 
-    /* ---------- the card ---------- */
-    .card {
-      position: relative;
-      max-width: 1180px;          /* a computer page (on a phone: see the end of the style) */
-      margin: 40px auto;
-      padding: 40px 44px 28px;
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 18px;
-      overflow: hidden;
-      box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6);
-    }
-    .card::before {               /* a thin blue light at the top of the card */
-      content: "";
-      position: absolute;
-      top: 0; left: 0; right: 0;
-      height: 2px;
-      background: linear-gradient(90deg, transparent, var(--blue), transparent);
-    }
+    .card { border: 1px solid var(--border); border-radius: 10px; background: #fff; padding: 16px 18px; margin-bottom: 16px; }
+    .card h2 { font-size: 16px; margin: 0 0 12px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .card h2 .right { margin-left: auto; display: flex; gap: 6px; flex-wrap: wrap; }
 
-    /* ---------- header: logo + title + API status ---------- */
-    header { display: flex; align-items: center; gap: 16px; }
-    .logo {
-      flex: none;
-      width: 50px; height: 50px;
-      border-radius: 14px;
-      background: linear-gradient(145deg, var(--blue-hover), var(--blue) 60%, #0838C0);
-      box-shadow: 0 8px 24px rgba(10, 77, 255, 0.35);
-      display: grid; place-items: center;
-    }
-    .logo svg { width: 26px; height: 26px; }
-    h1 { margin: 0; font-size: 22px; font-weight: 600; letter-spacing: 0.2px; }
-    .subtitle { margin: 3px 0 0; font-size: 14px; color: var(--muted); }
+    /* the wav */
+    .drop { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; text-align: center;
+            border: 2px dashed #bfdbfe; border-radius: 10px; background: var(--blue-tint); padding: 26px 16px; cursor: pointer; }
+    .drop.over, .drop:hover { border-color: var(--blue-2); }
+    .drop.has-file { border-style: solid; border-color: var(--blue-2); }
+    .drop.bad-file { border-color: var(--red); background: var(--red-tint); }
+    .drop svg { width: 34px; height: 34px; }
+    .drop-title { font-weight: 600; }
+    .drop-hint { color: var(--muted); font-size: 13px; }
+    .drop input { display: none; }
+    .actions { display: flex; gap: 10px; margin-top: 12px; flex-wrap: wrap; }
+    .btn { border: 1px solid var(--blue); background: var(--blue); color: #fff; border-radius: 8px; padding: 9px 18px;
+           font-size: 15px; font-weight: 600; cursor: pointer; }
+    .btn:hover { background: var(--blue-2); }
+    .btn.secondary { background: #fff; color: var(--blue); }
+    .btn.secondary:hover { background: var(--blue-tint); }
+    .btn:disabled { opacity: 0.55; cursor: wait; }
 
-    .status {
-      margin-left: auto;
-      display: inline-flex; align-items: center; gap: 8px;
-      padding: 6px 12px;
-      border: 1px solid var(--border);
-      border-radius: 999px;
-      font-size: 12.5px; color: var(--muted);
-      white-space: nowrap;
-    }
-    .status .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
-    .status.online .dot { background: var(--green); box-shadow: 0 0 0 4px rgba(93, 181, 44, 0.18); }
-    .status.offline .dot { background: var(--red); box-shadow: 0 0 0 4px rgba(255, 45, 31, 0.18); }
+    /* the results */
+    .official { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+    .big-badge { font-size: 22px; font-weight: 700; padding: 8px 18px; border-radius: 10px; }
+    .big-badge.normal { background: var(--green-tint); color: var(--green); border: 1px solid #a7f3d0; }
+    .big-badge.abnormal { background: var(--red-tint); color: var(--red); border: 1px solid #fecaca; }
+    .proba { flex: 1; min-width: 200px; }
+    .proba-label { display: flex; justify-content: space-between; font-size: 13px; color: var(--muted); }
+    .bar { position: relative; height: 12px; border-radius: 6px; background: #f3f4f6; border: 1px solid var(--border); overflow: hidden; }
+    .bar .fill { height: 100%; background: var(--blue-2); }
+    .bar .mid { position: absolute; left: 50%; top: 0; bottom: 0; width: 2px; background: #9ca3af; }
+    .meta { color: var(--muted); font-size: 13px; margin-top: 10px; }
+    .badge { display: inline-block; font-size: 12px; font-weight: 600; padding: 2px 9px; border-radius: 999px; border: 1px solid; }
+    .badge.green { color: var(--green); background: var(--green-tint); border-color: #a7f3d0; }
+    .badge.red { color: var(--red); background: var(--red-tint); border-color: #fecaca; }
+    .badge.blue { color: var(--blue); background: var(--blue-tint); border-color: #bfdbfe; }
+    .badge.grey { color: var(--muted); background: var(--bg-soft); border-color: var(--border); }
+    .warning { background: var(--amber-tint); color: var(--amber); border: 1px solid #fde68a; border-radius: 8px; padding: 8px 12px; margin-top: 10px; font-size: 14px; }
+    .error { background: var(--red-tint); color: var(--red); border: 1px solid #fecaca; border-radius: 8px; padding: 10px 12px; margin-bottom: 16px; }
+    .error strong { display: block; }
 
-    /* ---------- 2 columns: left = the .wav, right = the result ---------- */
-    .layout {
-      display: grid;
-      grid-template-columns: 380px 1fr;
-      gap: 32px;
-      align-items: start;
-      margin-top: 30px;
-    }
+    .table-wrap { overflow-x: auto; }
+    table { border-collapse: collapse; width: 100%; font-size: 13px; }
+    th, td { padding: 7px 8px; border-bottom: 1px solid var(--border); text-align: left; white-space: nowrap; }
+    th { color: var(--muted); font-weight: 600; background: var(--bg-soft); }
+    tr.best td { background: var(--blue-tint); font-weight: 600; }
+    .note { color: var(--muted); font-size: 12px; margin-top: 8px; }
 
-    /* ---------- the box to choose / drop the .wav ---------- */
-    .drop {
-      position: relative;
-      display: flex; flex-direction: column; align-items: center; gap: 6px;
-      padding: 64px 20px;
-      border: 1.5px dashed #34343F;
-      border-radius: 14px;
-      background: var(--surface);
-      text-align: center;
-      cursor: pointer;
-      transition: border-color 0.2s, background 0.2s;
-    }
-    .drop:hover, .drop.over { border-color: var(--blue); background: rgba(10, 77, 255, 0.06); }
-    .drop.has-file { border-style: solid; border-color: var(--blue); }
-    .drop.bad-file { border-style: solid; border-color: var(--red); }
-    .drop:focus-within { outline: 2px solid var(--blue-light); outline-offset: 3px; }
-    .drop svg { width: 36px; height: 36px; margin-bottom: 6px; }
-    .drop-title { font-weight: 600; word-break: break-all; }
-    .drop-hint { font-size: 13.5px; color: var(--muted); }
-    .drop input {                 /* the real file input: invisible, the whole box opens it */
-      position: absolute;
-      width: 1px; height: 1px;
-      opacity: 0;
-      pointer-events: none;
-    }
-
-    /* ---------- the button ---------- */
-    .btn {
-      width: 100%;
-      margin-top: 16px;
-      padding: 14px;
-      display: flex; align-items: center; justify-content: center; gap: 10px;
-      border: none;
-      border-radius: 12px;
-      background: var(--blue);
-      box-shadow: 0 8px 24px rgba(10, 77, 255, 0.28);
-      color: #FFFFFF;
-      font: inherit; font-size: 16px; font-weight: 600; letter-spacing: 0.3px;
-      cursor: pointer;
-      transition: background 0.2s, transform 0.1s;
-    }
-    .btn:hover { background: var(--blue-hover); }
-    .btn:active { transform: scale(0.99); }
-    .btn:focus-visible { outline: 2px solid var(--blue-light); outline-offset: 3px; }
-    .btn:disabled { cursor: wait; opacity: 0.75; }
-    .spinner {
-      display: none;
-      width: 16px; height: 16px;
-      border: 2px solid rgba(255, 255, 255, 0.35);
-      border-top-color: #FFFFFF;
-      border-radius: 50%;
-      animation: spin 0.8s linear infinite;
-    }
-    .btn.loading .spinner { display: inline-block; }
+    dl { margin: 0; }
+    .row { display: grid; grid-template-columns: 140px 1fr; gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--border); }
+    .row:last-child { border-bottom: none; }
+    dt { color: var(--muted); font-size: 13px; }
+    dd { margin: 0; }
+    dd ul { margin: 0; padding-left: 18px; }
+    @media (max-width: 600px) { .row { grid-template-columns: 1fr; gap: 2px; } }
+    .waiting { display: flex; align-items: center; gap: 10px; color: var(--muted); }
+    .spinner { width: 16px; height: 16px; border: 2px solid #bfdbfe; border-top-color: var(--blue-2); border-radius: 50%; animation: spin 0.9s linear infinite; flex: none; }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* ---------- the result ---------- */
-    #result { min-width: 0; }         /* min-width: 0 = the table can scroll instead of making the page wider */
-    #result:empty::before {           /* before the first analysis: a message in the empty right column */
-      content: "Le résultat de l'analyse s'affichera ici : la réponse du modèle officiel, le benchmark des 5 modèles, puis le rapport des agents IA.";
-      display: flex; align-items: center; justify-content: center;
-      min-height: 360px;
-      padding: 24px;
-      border: 1.5px dashed #34343F;
-      border-radius: 14px;
-      color: var(--muted);
-      text-align: center;
-      line-height: 1.6;
-    }
-    .panel {
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      background: var(--surface);
-      overflow: hidden;
-    }
-    .panel-head {
-      display: flex; align-items: center; justify-content: space-between; gap: 12px;
-      padding: 14px 18px;
-      border-bottom: 1px solid var(--border);
-    }
-    .panel-title { font-weight: 600; }
-    dl { margin: 0; }
-    .row {
-      display: grid;
-      grid-template-columns: 38% 1fr;
-      gap: 12px;
-      padding: 12px 18px;
-      border-bottom: 1px solid var(--border);
-    }
-    .row:last-child { border-bottom: none; }
-    .row dt { color: var(--muted); font-size: 14px; }
-    .row dd { margin: 0; font-variant-numeric: tabular-nums; word-break: break-word; }
+    /* the chat */
+    .chat { position: sticky; top: 16px; display: flex; flex-direction: column; height: calc(100vh - 140px); min-height: 480px; padding: 0; }
+    .chat-head { padding: 14px 18px; border-bottom: 1px solid var(--border); }
+    .chat-head h2 { margin: 0; }
+    .chat-head p { margin: 4px 0 0; color: var(--muted); font-size: 13px; }
+    .messages { flex: 1; overflow-y: auto; padding: 14px 18px; display: flex; flex-direction: column; gap: 10px; background: #fff; }
+    .msg { max-width: 85%; padding: 9px 13px; border-radius: 12px; white-space: pre-wrap; word-wrap: break-word; }
+    .msg.user { align-self: flex-end; background: var(--blue-2); color: #fff; border-bottom-right-radius: 4px; }
+    .msg.assistant { align-self: flex-start; background: #f3f4f6; color: var(--text); border-bottom-left-radius: 4px; }
+    .msg.assistant.refused { background: var(--bg-soft); border: 1px solid var(--border); }
+    .msg.assistant.failed { background: var(--red-tint); color: var(--red); }
+    .msg .sources { margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--border); font-size: 12px; color: var(--muted); white-space: normal; }
+    .msg .sources ol { margin: 2px 0 0; padding-left: 18px; }
+    .typing { align-self: flex-start; display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 13px; }
+    .dots { display: flex; gap: 4px; background: #f3f4f6; padding: 10px 12px; border-radius: 12px; }
+    .dots span { width: 6px; height: 6px; border-radius: 50%; background: #9ca3af; animation: blink 1.2s infinite; }
+    .dots span:nth-child(2) { animation-delay: 0.2s; }
+    .dots span:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes blink { 0%, 80%, 100% { opacity: 0.3; } 40% { opacity: 1; } }
+    .chips { display: flex; flex-wrap: wrap; gap: 6px; padding: 10px 18px 0; border-top: 1px solid var(--border); }
+    .chip { border: 1px solid #bfdbfe; background: var(--blue-tint); color: var(--blue); border-radius: 999px; padding: 4px 11px;
+            font-size: 13px; cursor: pointer; }
+    .chip:hover { border-color: var(--blue-2); }
+    .chat-input { display: flex; gap: 8px; padding: 10px 18px 14px; }
+    .chat-input input { flex: 1; border: 1px solid var(--border); border-radius: 8px; padding: 9px 12px; font-size: 15px; color: var(--text); }
+    .chat-input input:focus { outline: 2px solid #bfdbfe; border-color: var(--blue-2); }
+    @media (max-width: 900px) { .chat { position: static; height: 560px; } }
 
-    .badge {
-      display: inline-flex; align-items: center;
-      padding: 3px 10px;
-      border-radius: 999px;
-      font-size: 12.5px; font-weight: 600;
-    }
-    .badge.blue { color: var(--blue-light); background: rgba(10, 77, 255, 0.14); border: 1px solid rgba(10, 77, 255, 0.45); }
-    .badge.green { color: #8FDB62; background: rgba(93, 181, 44, 0.14); border: 1px solid rgba(93, 181, 44, 0.4); }
-    .badge.red { color: #FF7A6E; background: rgba(255, 45, 31, 0.12); border: 1px solid rgba(255, 45, 31, 0.4); }
-
-    .error {
-      padding: 14px 18px;
-      border: 1px solid rgba(255, 45, 31, 0.35);
-      border-left: 4px solid var(--red);
-      border-radius: 12px;
-      background: rgba(255, 45, 31, 0.08);
-      color: #FFB3AB;
-      line-height: 1.5;
-    }
-    .error strong { display: block; color: #FF7A6E; }
-
-    /* ---------- the benchmark table (1 line per model) ---------- */
-    .bench-panel { margin-top: 14px; }
-    .table-wrap { overflow-x: auto; }
-    table.bench { width: 100%; border-collapse: collapse; font-size: 13.5px; font-variant-numeric: tabular-nums; }
-    .bench th, .bench td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border); white-space: nowrap; }
-    .bench th { color: var(--muted); font-weight: 500; font-size: 12.5px; }
-    .bench tr.best td { background: rgba(10, 77, 255, 0.08); }    /* the best model = the official answer */
-    .bench-note { padding: 10px 18px 14px; color: var(--muted); font-size: 12.5px; line-height: 1.5; }
-
-    /* ---------- the report of the AI agents (Analyste -> Cardiologue RAG -> Auditeur) ---------- */
-    .report-panel { margin-top: 14px; }
-    .report-panel .badges { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
-    .report-panel dd { line-height: 1.55; }
-    .report-panel ul { margin: 0; padding-left: 18px; }
-    .report-panel li { margin-bottom: 4px; }
-    .report-panel .disclaimer { color: var(--muted); font-style: italic; }
-
-    /* ---------- footer ---------- */
-    footer {
-      margin-top: 28px;
-      padding-top: 18px;
-      border-top: 1px solid var(--border);
-      display: flex; justify-content: flex-end; align-items: center; flex-wrap: wrap; gap: 10px;    /* the links on the right */
-      font-size: 13px; color: var(--muted);
-    }
-    footer nav { display: flex; gap: 18px; }
-    footer a { color: var(--text); opacity: 0.8; text-decoration: none; }
-    footer a:hover { opacity: 1; color: var(--blue-light); }
-
-    /* ---------- small screens (tablet, phone): back to 1 column ---------- */
-    @media (max-width: 900px) {
-      .layout { grid-template-columns: 1fr; gap: 0; }
-      .drop { padding: 30px 20px; }
-      #result { margin-top: 22px; }
-      #result:empty { margin-top: 0; }
-      #result:empty::before { display: none; }
-    }
-    @media (max-width: 640px) {
-      .card { margin: 16px; padding: 28px 20px 22px; }
-      header { flex-wrap: wrap; }
-      .status { margin-left: 0; }
-      .row { grid-template-columns: 1fr; gap: 2px; }
-    }
+    footer { max-width: 1280px; margin: 0 auto; padding: 4px 24px 24px; color: var(--muted); font-size: 13px; display: flex; gap: 16px; flex-wrap: wrap; }
+    footer a { color: var(--blue); text-decoration: none; }
+    footer .disclaimer { flex: 1; min-width: 260px; }
   </style>
 </head>
 <body>
-  <main class="card">
-    <header>
-      <div class="logo" aria-hidden="true">
-        <svg viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/>
-          <path d="M3.22 12H9.5l.5-1 2 4.5 2-7 1.5 3.5h5.27"/>
-        </svg>
-      </div>
-      <div>
-        <h1>CardioAgent-Ops</h1>
-        <p class="subtitle">Analyse cardio-acoustique (PCG)</p>
-      </div>
-      <span id="status" class="status"><span class="dot"></span><span id="status-text">Connexion…</span></span>
-    </header>
-
-    <div class="layout">
-    <!-- left column: the .wav -->
-    <section>
-    <label id="drop" class="drop" for="file">
-      <svg viewBox="0 0 24 24" fill="none" stroke="#6F9BFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <path d="M2 13a2 2 0 0 0 2-2V7a2 2 0 0 1 4 0v13a2 2 0 0 0 4 0V4a2 2 0 0 1 4 0v13a2 2 0 0 0 4 0v-4a2 2 0 0 1 2-2"/>
-      </svg>
-      <span id="drop-title" class="drop-title">Glissez votre fichier .wav ici</span>
-      <span id="drop-hint" class="drop-hint">ou cliquez pour le choisir</span>
-      <input type="file" id="file" accept=".wav,audio/wav">
-    </label>
-
-    <button id="analyze-btn" class="btn" onclick="analyze()">
-      <span class="spinner"></span><span id="btn-text">Analyser</span>
-    </button>
-    </section>
-
-    <!-- right column: the result -->
-    <section id="result" aria-live="polite"></section>
+  <header>
+    <!-- an original icon: a heart outline with a pulse line inside (inline SVG) -->
+    <svg viewBox="0 0 48 48" fill="none" aria-hidden="true">
+      <path d="M24 41 C11 32 5 25 5 17 C5 11 9.5 7 15 7 C19 7 22 9.5 24 12.5 C26 9.5 29 7 33 7 C38.5 7 43 11 43 17 C43 25 37 32 24 41 Z"
+            stroke="#1d4ed8" stroke-width="3" stroke-linejoin="round"/>
+      <path d="M9 23 H17 L20 17 L24 29 L27 21 L29 23 H39" stroke="#2563eb" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    <div>
+      <h1>CardioAgent-Ops</h1>
+      <p class="subtitle">Analyse des sons du cœur (phonocardiogramme) · 5 modèles d'IA + 3 agents</p>
     </div>
+    <span id="status" class="status"><span class="dot"></span><span id="status-text">Connexion…</span></span>
+  </header>
 
-    <footer>
-      <nav>
-        <a href="/docs">Documentation API</a>
-        <a href="/health">État du service</a>
-      </nav>
-    </footer>
+  <main>
+    <div class="layout">
+      <!-- left column: the wav and its analysis -->
+      <section>
+        <div class="card">
+          <h2>1. Votre enregistrement</h2>
+          <label id="drop" class="drop" for="file">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+              <path d="M2 12h3l2-5 3 10 3-8 2 3h7"/>
+            </svg>
+            <span id="drop-title" class="drop-title">Glissez votre fichier .wav ici</span>
+            <span id="drop-hint" class="drop-hint">ou cliquez pour le choisir</span>
+            <input type="file" id="file" accept=".wav,audio/wav">
+          </label>
+          <div class="actions">
+            <button class="btn secondary" onclick="document.getElementById('file').click()">Choisir un .wav</button>
+            <button id="analyze-btn" class="btn" onclick="analyze()">Analyser</button>
+          </div>
+        </div>
+        <div id="result"></div>
+      </section>
+
+      <!-- right column: the chat with the assistant -->
+      <section class="card chat">
+        <div class="chat-head">
+          <h2>2. Posez une question sur votre résultat</h2>
+          <p>L'assistant répond à partir de votre analyse et de documents de cardiologie. Il ne pose pas de diagnostic.</p>
+        </div>
+        <div id="messages" class="messages"></div>
+        <div class="chips" id="chips"></div>
+        <div class="chat-input">
+          <input id="question" type="text" maxlength="1000" placeholder="Votre question… (Entrée pour envoyer)">
+          <button id="send-btn" class="btn" onclick="sendQuestion()">Envoyer</button>
+        </div>
+      </section>
+    </div>
   </main>
 
-  <script>
-    // nicer names for the fields the gateway sends back
-    const LABELS = {
-      filename: "Fichier",
-      size_bytes: "Taille",
-      duration_s: "Durée",
-      message: "Message",
-      prediction: "Prédiction",
-      probability_abnormal: "Probabilité « anormal »",
-      model: "Modèle officiel (meilleur recall)",
-      features: "Entrée du modèle",
-      model_scores: "Scores du modèle (3 folds)",
-      warning: "Attention"
-    };
+  <footer>
+    <span class="disclaimer">⚠ Cet outil est une aide au dépistage : il ne remplace pas un médecin. En cas de douleur thoracique,
+      de malaise ou d'essoufflement important, appelez le SAMU (190 en Tunisie).</span>
+    <a href="/docs">Documentation API</a>
+    <a href="/health">État du service</a>
+  </footer>
 
-    // nicer names for the models of the benchmark
+  <script>
     const MODEL_NAMES = {
-      DecisionTree: "Decision Tree", SVM: "SVM", CNN: "CNN",
-      ResNet50: "ResNet50 (transfer learning)", TransformerCNN: "Transformer-CNN"
+      DecisionTree: "Arbre de décision", SVM: "SVM", CNN: "CNN", ResNet50: "ResNet50 (transfer learning)",
+      TransformerCNN: "Transformer-CNN", Ensemble: "Ensemble (vote de 4 modèles)"
     };
-    // the risk level of the report: green = faible, blue = modéré, red = élevé
     const RISK_COLORS = { "faible": "green", "modéré": "blue", "élevé": "red" };
+    const SUGGESTIONS = ["Dois-je consulter un médecin ?", "Ce son est-il normal ?", "Que signifie la probabilité ?",
+                         "C'est quoi un souffle cardiaque ?"];
 
     const fileInput = document.getElementById("file");
     const drop = document.getElementById("drop");
     const result = document.getElementById("result");
-    const button = document.getElementById("analyze-btn");
+    const analyzeButton = document.getElementById("analyze-btn");
+    const messages = document.getElementById("messages");
+    const questionInput = document.getElementById("question");
+    const sendButton = document.getElementById("send-btn");
 
-    // ---------- 1. is the API running? (green or red dot at the top) ----------
-    fetch("/health")
-      .then(response => setStatus(response.ok))
-      .catch(() => setStatus(false));
+    let lastAnalysis = null;   // the last analysis {audio, report}: sent with each question (no database)
+    let history = [];          // the conversation: [{role, content}], the last 6 are sent
+    let analysisNumber = 0;    // to ignore a late report of an older wav
 
+    // ---------- is the API running? ----------
+    fetch("/health").then(r => setStatus(r.ok)).catch(() => setStatus(false));
     function setStatus(online) {
       document.getElementById("status").className = "status " + (online ? "online" : "offline");
       document.getElementById("status-text").textContent = online ? "API en ligne" : "API hors ligne";
     }
 
-    // ---------- 2. choose the file: click on the box, or drag & drop it ----------
+    // ---------- choose the wav: click or drag & drop ----------
     fileInput.addEventListener("change", showChosenFile);
-
-    drop.addEventListener("dragover", event => {
-      event.preventDefault();
-      drop.classList.add("over");
-    });
+    drop.addEventListener("dragover", e => { e.preventDefault(); drop.classList.add("over"); });
     drop.addEventListener("dragleave", () => drop.classList.remove("over"));
-    drop.addEventListener("drop", event => {
-      event.preventDefault();
+    drop.addEventListener("drop", e => {
+      e.preventDefault();
       drop.classList.remove("over");
-      fileInput.files = event.dataTransfer.files;    // put the dropped file in the file input
+      fileInput.files = e.dataTransfer.files;
       showChosenFile();
     });
-
     function showChosenFile() {
       const file = fileInput.files[0];
       if (!file) return;
       const isWav = file.name.toLowerCase().endsWith(".wav");
-      drop.classList.toggle("has-file", isWav);     // blue border: a .wav
-      drop.classList.toggle("bad-file", !isWav);    // red border: not a .wav
+      drop.classList.toggle("has-file", isWav);
+      drop.classList.toggle("bad-file", !isWav);
       document.getElementById("drop-title").textContent = file.name;
-      document.getElementById("drop-hint").textContent =
-        (isWav ? formatSize(file.size) : "Ce n'est pas un .wav") + " · cliquez pour changer";
-      result.innerHTML = "";
+      document.getElementById("drop-hint").textContent = (isWav ? formatSize(file.size) : "Ce n'est pas un .wav") + " · cliquez pour changer";
     }
 
-    // ---------- 3. send the file to /analyze_pcg (like "Try it out" in /docs) ----------
+    // ---------- analyse: 1. the audio result (1 s), 2. the report of the agents (minutes on a CPU) ----------
     async function analyze() {
       const file = fileInput.files[0];
-      if (!file) {
-        showError("Aucun fichier", "Choisissez d'abord un fichier .wav.");
-        return;
-      }
-      setLoading(true);
+      if (!file) { result.innerHTML = ""; showError("Aucun fichier", "Choisissez d'abord un fichier .wav."); return; }
+      const number = ++analysisNumber;
+      analyzeButton.disabled = true;
+      analyzeButton.textContent = "Analyse…";
       result.innerHTML = "";
-
       const form = new FormData();
-      form.append("file", file);    // "file" = the same name as in main.py
-
+      form.append("file", file);
+      let audio = null;
       try {
-        const response = await fetch("/analyze_pcg", { method: "POST", body: form });
+        const response = await fetch("/analyze_pcg?agents=false", { method: "POST", body: form });
         const data = await response.json();
-
-        if (response.ok) {
-          // with the agents: {"audio": ..., "report": ...} | without the agents: the audio result itself
-          const audio = data.audio || data;
-          showResult(audio);
-          if (data.report) showReport(data.report);
-          if (data.report_error) showError("Agents IA", data.report_error, false);
+        if (!response.ok) {
+          showError("Erreur " + response.status, typeof data.detail === "string" ? data.detail : JSON.stringify(data.detail));
+        } else if (!("prediction" in data)) {
+          showError("Moteur audio non connecté", data.message || JSON.stringify(data));
         } else {
-          // error from the gateway (400: not a .wav, 503: a service is down)
-          const detail = typeof data.detail === "string" ? data.detail : JSON.stringify(data.detail);
-          showError("Erreur " + response.status, detail);
+          audio = data;
         }
       } catch (error) {
         showError("Le serveur ne répond pas", String(error));
       }
-      setLoading(false);
-    }
+      analyzeButton.disabled = false;
+      analyzeButton.textContent = "Analyser";
+      if (!audio) return;
 
-    // ---------- 4. show the answer: one line per field ----------
-    function showResult(data) {
-      const panel = document.createElement("div");
-      panel.className = "panel";
+      lastAnalysis = { audio: audio, report: null };
+      showAudio(audio);
+      addMessage("assistant", "Votre enregistrement est analysé (« " + (audio.prediction === "normal" ? "normal" : "anormal") +
+                 " »). Vous pouvez me poser vos questions ; le rapport détaillé des agents arrive à gauche.");
 
-      const head = document.createElement("div");
-      head.className = "panel-head";
-      const title = document.createElement("span");
-      title.className = "panel-title";
-      title.textContent = "Résultat de l'analyse";
-      if ("prediction" in data) {
-        // the audio engine answered: green badge = normal, red badge = abnormal
-        const normal = data.prediction === "normal";
-        head.append(title, makeBadge(normal ? "Normal" : "Anormal", normal ? "green" : "red"));
-      } else {
-        head.append(title, makeBadge("Reçu", "blue"));
-      }
-
-      const rows = document.createElement("dl");
-      for (const key in data) {
-        // empty field (for example: no warning) -> no line. The benchmark has its own table (below)
-        if (data[key] === null || key === "benchmark") continue;
-        const row = document.createElement("div");
-        row.className = "row";
-        const name = document.createElement("dt");
-        name.textContent = LABELS[key] || key;
-        const value = document.createElement("dd");
-        if (key === "prediction") {
-          // the audio engine answers "normal" or "abnormal": green or red badge
-          const normal = data[key] === "normal";
-          value.append(makeBadge(normal ? "Normal" : "Anormal", normal ? "green" : "red"));
+      // step 2: the report of the 3 agents
+      const waiting = card("Rapport des agents IA");
+      const line = document.createElement("div");
+      line.className = "waiting";
+      const spin = document.createElement("span");
+      spin.className = "spinner";
+      line.append(spin, "Les agents (Analyste → Cardiologue → Auditeur) rédigent le rapport… quelques minutes sur un ordinateur sans GPU.");
+      waiting.append(line);
+      result.append(waiting);
+      try {
+        const response = await fetch("/report", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(audio) });
+        const data = await response.json();
+        if (number !== analysisNumber) return;             // a newer wav was analysed meanwhile
+        waiting.remove();
+        if (response.ok && data.report) {
+          lastAnalysis.report = data.report;
+          showReport(data.report);
         } else {
-          value.textContent = formatValue(key, data[key]);
+          showError("Rapport des agents indisponible", typeof data.detail === "string" ? data.detail : "Réessayez plus tard.");
         }
-        row.append(name, value);
-        rows.append(row);
+      } catch (error) {
+        if (number !== analysisNumber) return;
+        waiting.remove();
+        showError("Rapport des agents indisponible", String(error));
       }
-
-      panel.append(head, rows);
-      result.append(panel);
-      if (data.benchmark) showBenchmark(data.benchmark);
     }
 
-    // ---------- 5. the benchmark: the answer of each model for this wav + its scores in MLflow ----------
+    function showAudio(audio) {
+      // the official answer: big badge + probability bar
+      const panel = card("Résultat de l'analyse");
+      const official = document.createElement("div");
+      official.className = "official";
+      const normal = audio.prediction === "normal";
+      const big = document.createElement("span");
+      big.className = "big-badge " + (normal ? "normal" : "abnormal");
+      big.textContent = normal ? "Normal" : "Anormal";
+      official.append(big);
+      if (audio.probability_abnormal !== null && audio.probability_abnormal !== undefined) {
+        const p = audio.probability_abnormal;
+        const proba = document.createElement("div");
+        proba.className = "proba";
+        const label = document.createElement("div");
+        label.className = "proba-label";
+        const left = document.createElement("span");
+        left.textContent = "Probabilité « anormal »";
+        const right = document.createElement("strong");
+        right.textContent = Math.round(p * 100) + " %";
+        label.append(left, right);
+        const bar = document.createElement("div");
+        bar.className = "bar";
+        const fill = document.createElement("div");
+        fill.className = "fill";
+        fill.style.width = Math.round(p * 100) + "%";
+        const mid = document.createElement("div");
+        mid.className = "mid";
+        bar.append(fill, mid);
+        proba.append(label, bar);
+        official.append(proba);
+      }
+      panel.append(official);
+      const meta = document.createElement("div");
+      meta.className = "meta";
+      meta.textContent = "Modèle officiel : " + (MODEL_NAMES[audio.model] || audio.model) + " (meilleur recall de validation) · " +
+                         "fichier : " + audio.filename + " · durée : " + Number(audio.duration_s).toFixed(1) + " s";
+      panel.append(meta);
+      if (audio.warning) {
+        const warning = document.createElement("div");
+        warning.className = "warning";
+        warning.textContent = "Attention : " + audio.warning;
+        panel.append(warning);
+      }
+      result.append(panel);
+      showBenchmark(audio.benchmark);
+    }
+
     function showBenchmark(answers) {
-      const panel = document.createElement("div");
-      panel.className = "panel bench-panel";
-
-      const head = document.createElement("div");
-      head.className = "panel-head";
-      const title = document.createElement("span");
-      title.className = "panel-title";
-      title.textContent = "Benchmark des modèles";
-      head.append(title, makeBadge("Scores MLflow · validation + test", "blue"));
-
+      const panel = card("Les modèles pour ce son", [makeBadge("Scores MLflow · validation + test", "blue")]);
       const table = document.createElement("table");
-      table.className = "bench";
       const header = document.createElement("tr");
-      for (const name of ["Modèle", "Ce wav", "Proba.", "Recall val.", "F1 val.", "Recall test", "F1 test"]) {
+      for (const name of ["Modèle", "Ce son", "Proba.", "Recall val.", "Précision val.", "F1 val.", "Recall test", "F1 test"]) {
         const th = document.createElement("th");
         th.textContent = name;
         header.append(th);
       }
       table.append(header);
-
       answers.forEach((answer, i) => {
         const line = document.createElement("tr");
-        if (i === 0) line.className = "best";    // the first model = the best recall = the official answer
+        if (i === 0) line.className = "best";
         const normal = answer.prediction === "normal";
         const cells = [
           (MODEL_NAMES[answer.model] || answer.model) + (i === 0 ? " ★" : ""),
           makeBadge(normal ? "Normal" : "Anormal", normal ? "green" : "red"),
           answer.probability_abnormal === null ? "—" : Math.round(answer.probability_abnormal * 100) + " %",
-          formatScore(answer.recall),
-          formatScore(answer.f1),
-          formatScore(answer.test_recall),
-          formatScore(answer.test_f1)
+          formatScore(answer.recall), formatScore(answer.precision), formatScore(answer.f1),
+          formatScore(answer.test_recall), formatScore(answer.test_f1)
         ];
         for (const cell of cells) {
           const td = document.createElement("td");
-          td.append(cell);    // a text or a badge
+          td.append(cell);
           line.append(td);
         }
         table.append(line);
       });
-
       const wrap = document.createElement("div");
-      wrap.className = "table-wrap";    // on a phone, the table scrolls sideways
+      wrap.className = "table-wrap";
       wrap.append(table);
-
       const note = document.createElement("div");
-      note.className = "bench-note";
+      note.className = "note";
       note.textContent = "★ = le modèle officiel (le meilleur recall de validation : il rate le moins de cœurs malades). " +
-                         "Validation = moyenne des 3 folds, test = 20 % des wavs jamais vus. " +
-                         "Le SVM donne une classe, pas une probabilité.";
-
-      panel.append(head, wrap, note);
+                         "Validation = moyenne des 3 folds, test = 20 % des wavs jamais vus. Le SVM donne une classe, pas une probabilité.";
+      panel.append(wrap, note);
       result.append(panel);
     }
 
-    // ---------- 6. the report of the AI agents: Analyste -> Cardiologue (RAG) -> Auditeur ----------
     function showReport(report) {
-      const panel = document.createElement("div");
-      panel.className = "panel report-panel";
-
-      const head = document.createElement("div");
-      head.className = "panel-head";
-      const title = document.createElement("span");
-      title.className = "panel-title";
-      title.textContent = "Rapport des agents IA";
-      const badges = document.createElement("span");
-      badges.className = "badges";
-      badges.append(makeBadge("Risque " + report.risk_level, RISK_COLORS[report.risk_level] || "blue"));
-      if (report.audit.approved) {
-        badges.append(makeBadge("Validé par l'Auditeur", "green"));
-      } else {
-        badges.append(makeBadge("Rapport de secours", "red"));
-      }
-      head.append(title, badges);
-
+      const badges = [makeBadge("Risque " + report.risk_level, RISK_COLORS[report.risk_level] || "blue")];
+      badges.push(report.audit.approved ? makeBadge("Validé par l'Auditeur", "green") : makeBadge("Rapport de secours", "grey"));
+      const panel = card("Rapport des agents IA", badges);
       const rows = document.createElement("dl");
       rows.append(makeRow("Résumé", report.summary));
       rows.append(makeRow("Explication", report.clinical_explanation));
       rows.append(makeRow("Recommandations", makeList(report.recommendations)));
-      const sources = report.sources.map(source => source.title + " (p. " + source.page + ")");
+      const sources = report.sources.map(s => s.title + " (p. " + s.page + ")");
       rows.append(makeRow("Sources (RAG)", sources.length ? makeList(sources) : "—"));
       if (report.audit.issues.length) rows.append(makeRow("Audit", makeList(report.audit.issues)));
-      const disclaimer = document.createElement("span");
-      disclaimer.className = "disclaimer";
-      disclaimer.textContent = report.disclaimer;
-      rows.append(makeRow("Avertissement", disclaimer));
-
-      panel.append(head, rows);
+      rows.append(makeRow("Avertissement", report.disclaimer));
+      panel.append(rows);
       result.append(panel);
     }
 
-    function showError(title, text, clear = true) {
-      if (clear) result.innerHTML = "";
+    // ---------- the chat ----------
+    addMessage("assistant", "Bonjour ! Je réponds à vos questions sur votre enregistrement (après l'analyse) et sur le cœur en général. " +
+               "Je ne pose pas de diagnostic : seul un médecin peut confirmer un résultat.");
+    const chips = document.getElementById("chips");
+    for (const text of SUGGESTIONS) {
+      const chip = document.createElement("button");
+      chip.className = "chip";
+      chip.textContent = text;
+      chip.onclick = () => { questionInput.value = text; sendQuestion(); };
+      chips.append(chip);
+    }
+    questionInput.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); sendQuestion(); } });
+
+    async function sendQuestion() {
+      const question = questionInput.value.trim();
+      if (!question || sendButton.disabled) return;
+      questionInput.value = "";
+      addMessage("user", question);
+      sendButton.disabled = true;
+      const typing = document.createElement("div");
+      typing.className = "typing";
+      const dots = document.createElement("div");
+      dots.className = "dots";
+      dots.append(document.createElement("span"), document.createElement("span"), document.createElement("span"));
+      typing.append(dots, "L'assistant écrit… (1 à 3 min sur un ordinateur sans GPU)");
+      messages.append(typing);
+      messages.scrollTop = messages.scrollHeight;
+      try {
+        const response = await fetch("/chat", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ question: question, analysis: lastAnalysis, history: history.slice(-6) })
+        });
+        const data = await response.json();
+        typing.remove();
+        if (response.ok) {
+          addMessage("assistant", data.answer, data.sources, data.on_topic ? "" : "refused");
+          history.push({ role: "user", content: question }, { role: "assistant", content: data.answer });
+        } else {
+          addMessage("assistant", "Erreur " + response.status + " : " + (typeof data.detail === "string" ? data.detail : JSON.stringify(data.detail)), [], "failed");
+        }
+      } catch (error) {
+        typing.remove();
+        addMessage("assistant", "L'assistant ne répond pas : " + String(error), [], "failed");
+      }
+      sendButton.disabled = false;
+      questionInput.focus();
+    }
+
+    function addMessage(role, text, sources = [], extra = "") {
+      const bubble = document.createElement("div");
+      bubble.className = "msg " + role + (extra ? " " + extra : "");
+      bubble.append(text);
+      if (sources && sources.length) {
+        const box = document.createElement("div");
+        box.className = "sources";
+        box.append("Sources :");
+        const list = document.createElement("ol");
+        for (const s of sources) {
+          const li = document.createElement("li");
+          li.textContent = s.title + " (p. " + s.page + ")";
+          list.append(li);
+        }
+        box.append(list);
+        bubble.append(box);
+      }
+      messages.append(bubble);
+      messages.scrollTop = messages.scrollHeight;
+    }
+
+    // ---------- small helpers ----------
+    function card(title, badges = []) {
+      const panel = document.createElement("div");
+      panel.className = "card";
+      const h2 = document.createElement("h2");
+      h2.append(title);
+      if (badges.length) {
+        const right = document.createElement("span");
+        right.className = "right";
+        right.append(...badges);
+        h2.append(right);
+      }
+      panel.append(h2);
+      return panel;
+    }
+    function showError(title, text) {
       const box = document.createElement("div");
       box.className = "error";
       const strong = document.createElement("strong");
@@ -540,17 +484,13 @@
       box.append(strong, text);
       result.append(box);
     }
-
-    // ---------- small helpers ----------
     function makeBadge(text, color) {
       const badge = document.createElement("span");
       badge.className = "badge " + color;
       badge.textContent = text;
       return badge;
     }
-
     function makeRow(label, content) {
-      // 1 line of a panel: the name on the left, a text or an element on the right
       const row = document.createElement("div");
       row.className = "row";
       const name = document.createElement("dt");
@@ -560,7 +500,6 @@
       row.append(name, value);
       return row;
     }
-
     function makeList(items) {
       const list = document.createElement("ul");
       for (const item of items) {
@@ -570,36 +509,8 @@
       }
       return list;
     }
-
-    function formatScore(value) {
-      return (value === null || value === undefined) ? "—" : value.toFixed(3);
-    }
-
-    function setLoading(loading) {
-      button.disabled = loading;
-      button.classList.toggle("loading", loading);
-      // the agents (LLM) can take 1 to 3 minutes on a computer without GPU
-      document.getElementById("btn-text").textContent = loading ? "Analyse en cours… (agents IA : 1 à 3 min)" : "Analyser";
-    }
-
-    function formatValue(key, value) {
-      if (value === null || value === undefined) return "—";
-      if (key === "size_bytes") return formatSize(value) + " (" + value.toLocaleString("fr-FR") + " octets)";
-      if (key === "duration_s") return value.toFixed(2) + " s";
-      if (key === "probability_abnormal") return Math.round(value * 100) + " %";
-      if (key === "model_scores") {
-        // the scores of the model on the 3 folds (saved in MLflow)
-        return "recall " + value.recall.toFixed(3) + " · précision " + value.precision.toFixed(3) +
-               " · F1 " + value.f1.toFixed(3) + " · accuracy " + value.accuracy.toFixed(3);
-      }
-      if (typeof value === "object") return JSON.stringify(value);
-      return value;
-    }
-
-    function formatSize(bytes) {
-      if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " Ko";
-      return (bytes / 1024 / 1024).toFixed(1) + " Mo";
-    }
+    function formatScore(value) { return (value === null || value === undefined) ? "—" : Number(value).toFixed(3); }
+    function formatSize(bytes) { return bytes < 1024 * 1024 ? (bytes / 1024).toFixed(1) + " Ko" : (bytes / 1024 / 1024).toFixed(1) + " Mo"; }
   </script>
 </body>
 </html>

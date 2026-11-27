@@ -250,6 +250,8 @@ def check_rules(report, facts):
         issues.append("le résumé ne dit pas que le son est classé « anormal »")
     if facts["prediction"] == "normal" and re.search(r"\bnormal", report["summary"].lower()) is None:
         issues.append("le résumé ne dit pas que le son est classé « normal »")
+    if facts["prediction"] == "normal" and "anormal" in report["summary"].lower():
+        issues.append("le résumé dit « anormal » alors que le moteur audio dit « normal »")
     for word in FORBIDDEN:
         if word in text:
             issues.append("diagnostic définitif ou prescription interdit : « " + word.strip() + " »")
@@ -261,6 +263,32 @@ def check_rules(report, facts):
             doctor = True
     if not doctor:
         issues.append("les recommandations ne disent pas de consulter un médecin")
+    return issues
+
+
+def is_true(value):
+    # a small LLM writes true, "true", "oui"... -> True
+    return value is True or str(value).strip().lower() in ["true", "oui", "yes", "vrai"]
+
+
+def is_false(value):
+    return value is False or str(value).strip().lower() in ["false", "non", "no", "faux"]
+
+
+def llm_audit_issues(content):
+    # the LLM answers 1 question per check (true / false) and the CODE decides. We do not ask a small LLM for
+    # "approved + a list of problems": the 3B model copied the checklist into the list (even the checks that passed)
+    # and refused good reports. The coherence with the audio prediction is checked by check_rules (the code).
+    problem = as_text(content.get("probleme")).strip()
+    issues = []
+    if is_true(content.get("diagnostic_definitif")):
+        issues.append("diagnostic définitif")
+    if is_true(content.get("prescription")):
+        issues.append("prescription d'un traitement")
+    if is_false(content.get("consulter_medecin")):
+        issues.append("ne recommande pas de consulter un médecin")
+    if issues and problem != "":
+        issues = [issue + " (auditeur : " + problem + ")" for issue in issues]
     return issues
 
 
@@ -279,11 +307,7 @@ def auditeur(state):
                        + " | ".join(report["recommendations"]) + "\nAvertissement : " + report["disclaimer"])
             answer = llm.chat_json(prompts.AUDITEUR, message)
             add_tokens(metrics, answer)
-            if answer["content"].get("approved") is False:
-                llm_issues = as_text_list(answer["content"].get("issues"))
-                if not llm_issues:
-                    llm_issues = ["refusé par l'auditeur (sans raison donnée)"]
-                issues = issues + llm_issues
+            issues = issues + llm_audit_issues(answer["content"])
         except Exception:
             pass    # the LLM check is a second opinion: if it fails, the rules decide
 

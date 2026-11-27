@@ -16,7 +16,10 @@ LLM_MODEL = os.getenv("LLM_MODEL", "qwen2.5:3b-instruct")             # "cardio-
 LLM_TIMEOUT = float(os.getenv("LLM_TIMEOUT", "600"))                  # seconds: an LLM on a CPU can be slow
 
 
-def chat_json(system_prompt, user_prompt):
+def chat_json(system_prompt, user_prompt, max_tokens=None):
+    options = {"temperature": 0.2, "num_ctx": 4096}
+    if max_tokens is not None:
+        options["num_predict"] = max_tokens    # a short answer: the LLM runs on a CPU (the chat uses ~300 tokens)
     response = requests.post(
         LLM_URL + "/api/chat",
         json={
@@ -25,7 +28,7 @@ def chat_json(system_prompt, user_prompt):
                          {"role": "user", "content": user_prompt}],
             "format": "json",
             "stream": False,
-            "options": {"temperature": 0.2, "num_ctx": 4096},
+            "options": options,
         },
         timeout=LLM_TIMEOUT,
     )

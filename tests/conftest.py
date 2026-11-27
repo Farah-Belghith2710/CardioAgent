@@ -17,6 +17,10 @@ sys.path.insert(0, ROOT)
 
 SR = 2000
 
+# FastAPI's TestClient is a class whose name starts with "Test": pytest must not try to collect it as a test
+from fastapi.testclient import TestClient  # noqa: E402
+TestClient.__test__ = False
+
 
 def make_wav(seconds=6.0, kind="heart", sr=SR):
     # a small wav in memory (bytes): "heart" = a 60 Hz sine with beats + noise, "silent" = zeros,

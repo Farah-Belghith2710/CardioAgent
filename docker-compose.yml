@@ -55,6 +55,7 @@ services:
     build:
       context: .
       dockerfile: docker/audio-engine.Dockerfile
+    init: true                                         # a tiny init: stops cleanly, no zombie process
     environment:
       MLFLOW_TRACKING_URI: http://mlflow-server:5000
     ports:
@@ -76,6 +77,7 @@ services:
     build:
       context: .
       dockerfile: docker/agent-orchestrator.Dockerfile
+    init: true                                         # a tiny init: stops cleanly, no zombie process
     environment:
       QDRANT_URL: http://vector-db:6333
       LLM_URL: http://llm-server:11434
@@ -99,7 +101,7 @@ services:
       interval: 10s
       timeout: 10s
       retries: 12
-      start_period: 30s
+      start_period: 180s                               # loading LangGraph + the embedding model takes time on our PC
     networks: [cardio-net]
     restart: unless-stopped
 
@@ -108,6 +110,7 @@ services:
     build:
       context: .
       dockerfile: docker/api-gateway.Dockerfile
+    init: true                                         # a tiny init: stops cleanly, no zombie process
     environment:
       AUDIO_ENGINE_URL: http://audio-engine:8001/predict
       ORCHESTRATOR_URL: http://agent-orchestrator:8002/orchestrate

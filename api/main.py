@@ -4,13 +4,15 @@ Service 5 : api-gateway (FastAPI + Uvicorn)
 Point d'entrée unique de la plateforme :
   client --(.wav)--> POST /analyze_pcg --> moteur audio (Service 3) --> orchestrateur des agents (Service 4)
   client <--(résultat audio + rapport des agents)------------------------'
+  POST /analyze_pcg?agents=false -> only the audio result (1 s); then POST /report with it -> the report (minutes)
+  POST /chat  -> a question about the analysis or the heart -> the assistant (Service 4)
 """
 import io
 import os
 import wave
 
 import requests
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import Body, FastAPI, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 
 # Addresses of the 2 other services. We give them when we start the container (docker-compose.yml):
@@ -20,6 +22,7 @@ AUDIO_ENGINE_URL = os.getenv("AUDIO_ENGINE_URL", "")
 ORCHESTRATOR_URL = os.getenv("ORCHESTRATOR_URL", "")
 AUDIO_ENGINE_TIMEOUT = 180                                             # seconds (6 models on a busy CPU)
 ORCHESTRATOR_TIMEOUT = float(os.getenv("ORCHESTRATOR_TIMEOUT", "900"))  # the LLM on a CPU can take minutes
+CHAT_TIMEOUT = float(os.getenv("CHAT_TIMEOUT", "300"))                   # 1 short answer of the LLM
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 
@@ -66,8 +69,13 @@ def health():
     return {"status": "ok", "audio_engine": AUDIO_ENGINE_URL != "", "orchestrator": ORCHESTRATOR_URL != ""}
 
 
+def chat_url():
+    # the chat is on the same service as the agents: http://agent-orchestrator:8002/orchestrate -> .../chat
+    return ORCHESTRATOR_URL.rsplit("/", 1)[0] + "/chat"
+
+
 @app.post("/analyze_pcg")
-def analyze_pcg(file: UploadFile = File(...)):
+def analyze_pcg(file: UploadFile = File(...), agents: bool = True):
     # 1. accept only .wav files
     if not file.filename.lower().endswith(".wav"):
         raise HTTPException(status_code=400, detail="Le fichier doit être un .wav")
@@ -86,8 +94,9 @@ def analyze_pcg(file: UploadFile = File(...)):
     audio_result = send_to_service(AUDIO_ENGINE_URL, files={"file": (file.filename, audio, "audio/wav")},
                                    timeout=AUDIO_ENGINE_TIMEOUT)
 
-    # 4. send the audio engine's result to the orchestrator of the agents (if it's ready)
-    if ORCHESTRATOR_URL == "":
+    # 4. send the audio engine's result to the orchestrator of the agents (if it's ready and asked)
+    #    agents=false: the web page shows the audio result at once, then asks for the report with /report
+    if ORCHESTRATOR_URL == "" or not agents:
         return audio_result
     try:
         return send_to_service(ORCHESTRATOR_URL, json=audio_result, timeout=ORCHESTRATOR_TIMEOUT)
@@ -95,3 +104,19 @@ def analyze_pcg(file: UploadFile = File(...)):
         # the agents are down: the client still gets the result of the audio engine (degraded mode)
         return {"audio": audio_result, "report": None,
                 "report_error": "Rapport des agents indisponible : " + str(error.detail)}
+
+
+@app.post("/report")
+def report(audio_result: dict = Body(...)):
+    # the report of the 3 agents for an audio result already shown on the page (the web page: step 2)
+    if ORCHESTRATOR_URL == "":
+        raise HTTPException(status_code=503, detail="L'orchestrateur des agents n'est pas connecté (ORCHESTRATOR_URL vide)")
+    return send_to_service(ORCHESTRATOR_URL, json=audio_result, timeout=ORCHESTRATOR_TIMEOUT)
+
+
+@app.post("/chat")
+def chat(question: dict = Body(...)):
+    # the chat: {"question", "analysis", "history"} -> the assistant of Service 4 (it checks the JSON: 422 if wrong)
+    if ORCHESTRATOR_URL == "":
+        raise HTTPException(status_code=503, detail="L'assistant n'est pas connecté (ORCHESTRATOR_URL vide)")
+    return send_to_service(chat_url(), json=question, timeout=CHAT_TIMEOUT)
