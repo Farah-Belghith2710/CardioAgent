@@ -53,7 +53,7 @@ def test_audio_engine_down_gives_503(monkeypatch, heart_wav):
     monkeypatch.setattr(gateway.requests, "post", engine_down)
     response = client.post("/analyze_pcg", files={"file": ("heart.wav", heart_wav, "audio/wav")})
     assert response.status_code == 503
-    assert "injoignable" in response.json()["detail"]
+    assert response.json()["detail"] == gateway.ENGINE_DOWN       # a short French message, not the Python error
 
 
 def test_error_of_the_audio_engine_is_given_to_the_client(monkeypatch, silent_wav):

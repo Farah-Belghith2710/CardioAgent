@@ -9,6 +9,7 @@ RAG - step 2 (search): the chunks of Qdrant that are the closest to a question (
 The Cardiologue agent searches the "clinique" documents; the Analyste agent may search the "technique" ones.
 """
 import sys
+import threading
 
 from fastembed import TextEmbedding
 from qdrant_client import QdrantClient
@@ -21,10 +22,14 @@ _model = None
 _client = None
 
 
+_lock = threading.Lock()    # the warm-up thread of the orchestrator and a first question may ask at the same time
+
+
 def get_model():
     global _model
-    if _model is None:
-        _model = TextEmbedding(model_name=EMBEDDING_MODEL)
+    with _lock:
+        if _model is None:
+            _model = TextEmbedding(model_name=EMBEDDING_MODEL)
     return _model
 
 

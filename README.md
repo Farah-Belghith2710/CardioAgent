@@ -85,12 +85,46 @@ the fine-tuned GGUF is in `llm_server/models/`). Retrain all the models: `venv\S
   written by the code and the chat answers « Le service d'IA en ligne n'est pas disponible pour le moment (vérifiez la
   clé dans .env). ». The MLflow `llm_inference` runs log `llm_provider` and `llm_model` (never the key).
 
+### If the page says « Le moteur audio démarre… » (error 503)
+
+The audio engine loads its 5 ONNX models, starts listening on port 8001 at once, and warms the models up in a
+background thread (`GET /health` → `"warming_up": true`, then `false`). Before (until 27/11) the warm-up ran
+*before* the server started: on a busy PC the engine stayed deaf for minutes and the page showed « Service
+injoignable … Connection refused ». Now:
+
+- **Wait a few seconds and try again**: the gateway answers 503 with « Le moteur audio démarre (chargement des
+  modèles)… Réessayez dans quelques secondes. » while the engine starts.
+- `docker compose ps`: all the services "Up"; `docker compose logs --tail 100 audio-engine` for the details (a model
+  that cannot be loaded is skipped with a WARNING, the engine still starts).
+- In the online mode, `docker compose ps` must **not** list `llm-server`: start with the scripts, not with the ▶
+  button of the whole `cardioagent` stack in Docker Desktop (that button also starts `llm-server`, whose 2 GB model
+  slows the whole PC). Each ONNX model uses 2 threads only (`intra_op_num_threads = 2`), so the engine does not fight
+  with the other containers for the 12 CPUs.
+
+| Measured on Farah's PC (28/11/2026) | Time |
+|---|---|
+| `docker restart` of the engine → `/health` answers | ~1 s after the container starts (10 s with the restart itself) |
+| first `/predict` right after (warm-up still running) | 2.3 s; the warm-up alone: 2.7 s on a quiet PC |
+| a warm `/predict` (8 s wav, 5 models + ensemble) | 0.1 s |
+| cold start: `docker compose down` → `start_online_mode.ps1` → engine `/health` | 33 s (the containers start ~25 s after the script) |
+| … → first `/predict` | 22 s (MLflow and the orchestrator start at the same time) |
+| … → the page (gateway) ready | 55 s |
+| `start_local_mode.ps1` → the page says « Mode local » | 34 s (the LLM loads in the background for the first report) |
+| `-Build` (rebuild the images, only after a change of the code) | + ~3 min |
+
+**Docker resources**: Docker Desktop here uses WSL2, with 12 CPUs and 7.7 GB of memory (`docker info`). With WSL2
+the limits are not in *Settings → Resources* but in `%UserProfile%\.wslconfig` (`[wsl2]`, `memory=8GB`,
+`processors=8`, then `wsl --shutdown`). On a 16 GB PC, giving Docker more memory leaves less for Windows: closing
+browser tabs and other apps helps more.
+
 ### Demo for the prof: the local version (as in the PDF)
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts\start_local_mode.ps1     # the 6 containers, the LLM = Ollama on the PC
 powershell -ExecutionPolicy Bypass -File scripts\start_online_mode.ps1    # back to the online mode
 ```
+
+Add `-Build` to a script after a change of the code (it rebuilds the images, ~3 minutes); every day, without it.
 
 The local script sets `LLM_PROVIDER=ollama` only for that terminal (no file to edit: a value typed in the terminal
 wins over `.env`) and starts the compose profile `local-llm`; the model stays in the Docker volume `ollama-data`, so
@@ -296,11 +330,10 @@ orchestrator is down, its 4xx message passed through, timeout 300 s).
 audio result in ~1 s (shown at once, and the chat can use it), then `POST /report` with it gives the agents' report
 when the LLM has finished. `POST /analyze_pcg` without the parameter still returns both (for API users).
 
-Test on Farah's PC (real test wav, 8 s): the audio result in a few seconds (Anormal, 96 %), the report of the agents
-**validated by the Auditeur**, *« Dois-je voir un médecin ? »* → a careful answer with the numbers of the analysis,
-a cardiologist, SAMU 190 and a source (~2–3 min on CPU), *« comment faire une pizza ? »* → the fixed refusal at once.
-(This report was made just before the "all the models agree" rule was added to the Auditeur: here 5 of the 6
-models agree, which the rule now sends back to the Cardiologue.)
+The page (dark theme, online mode with Groq), tested on Farah's PC on 28/11/2026 with a real test wav (8 s): the
+audio result + the report of the agents in **5.6 s** (**validated by the Auditeur**), *« Dois-je voir un médecin ? »*
+→ a careful answer with the numbers of the analysis, a cardiologist and SAMU 190 in **1.2 s**, *« comment faire une
+pizza ? »* → the fixed refusal in 0.3 s. The status at the top right says « Mode en ligne » (or « Mode local »).
 
 ![The page with an analysis, the report and the chat](docs/page_analysis_and_chat.png)
 
@@ -322,7 +355,7 @@ models agree, which the rule now sends back to the Cardiologue.)
 - `pip install -r requirements-test.txt` (no TensorFlow), then
   `pytest --cov=audio_engine --cov=api --cov=agents --cov=rag_engine --cov-report=term-missing`.
 
-Result on Farah's PC: **115 tests passed, total coverage 92 %** (`agents/chat.py` 94 %, `agents/llm.py` 92 %, `agents/graph.py` 91 %,
+Result on Farah's PC: **116 tests passed, total coverage 91 %** (`agents/chat.py` 94 %, `agents/llm.py` 92 %, `agents/graph.py` 91 %,
 `api/main.py` 97 %, `audio_engine/main.py` 90 %, `rag_engine/ingest.py` 94 %, `agents/schemas.py` 100 %).
 
 - **GitHub Actions** (`.github/workflows/mlops-ci-cd.yml`), at each push and pull request: job `tests` (Python 3.10,

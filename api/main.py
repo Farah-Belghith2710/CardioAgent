@@ -36,13 +36,21 @@ def get_duration(audio):
         return None    # not a readable wav
 
 
-def send_to_service(url, files=None, json=None, timeout=60):
+# the messages for the page when a service does not answer yet (it is starting: models loading)
+ENGINE_DOWN = "Le moteur audio démarre (chargement des modèles)… Réessayez dans quelques secondes."
+AGENTS_DOWN = "Les agents IA démarrent… Réessayez dans quelques secondes."
+CHAT_DOWN = "L'assistant démarre… Réessayez dans quelques secondes."
+
+
+def send_to_service(url, files=None, json=None, timeout=60, down_message=None):
     # send a POST request to another service and return its JSON answer
     try:
         response = requests.post(url, files=files, json=json, timeout=timeout)
     except requests.RequestException as error:
-        # the service is down -> clear message for the client
-        raise HTTPException(status_code=503, detail="Service injoignable : " + url + " (" + str(error) + ")")
+        # the service does not answer (starting, or stopped): a short French message for the page,
+        # the technical error only in the logs of the gateway
+        print("Service injoignable :", url, "(" + type(error).__name__ + ")")
+        raise HTTPException(status_code=503, detail=down_message or "Service injoignable : " + url)
 
     if response.status_code != 200:
         # the service answered, but with an error (for example a silent .wav) -> we give its message to the client
@@ -104,14 +112,15 @@ def analyze_pcg(file: UploadFile = File(...), agents: bool = True):
 
     # 3. send the .wav to the audio engine
     audio_result = send_to_service(AUDIO_ENGINE_URL, files={"file": (file.filename, audio, "audio/wav")},
-                                   timeout=AUDIO_ENGINE_TIMEOUT)
+                                   timeout=AUDIO_ENGINE_TIMEOUT, down_message=ENGINE_DOWN)
 
     # 4. send the audio engine's result to the orchestrator of the agents (if it's ready and asked)
     #    agents=false: the web page shows the audio result at once, then asks for the report with /report
     if ORCHESTRATOR_URL == "" or not agents:
         return audio_result
     try:
-        return send_to_service(ORCHESTRATOR_URL, json=audio_result, timeout=ORCHESTRATOR_TIMEOUT)
+        return send_to_service(ORCHESTRATOR_URL, json=audio_result, timeout=ORCHESTRATOR_TIMEOUT,
+                               down_message=AGENTS_DOWN)
     except HTTPException as error:
         # the agents are down: the client still gets the result of the audio engine (degraded mode)
         return {"audio": audio_result, "report": None,
@@ -123,7 +132,7 @@ def report(audio_result: dict = Body(...)):
     # the report of the 3 agents for an audio result already shown on the page (the web page: step 2)
     if ORCHESTRATOR_URL == "":
         raise HTTPException(status_code=503, detail="L'orchestrateur des agents n'est pas connecté (ORCHESTRATOR_URL vide)")
-    return send_to_service(ORCHESTRATOR_URL, json=audio_result, timeout=ORCHESTRATOR_TIMEOUT)
+    return send_to_service(ORCHESTRATOR_URL, json=audio_result, timeout=ORCHESTRATOR_TIMEOUT, down_message=AGENTS_DOWN)
 
 
 @app.post("/chat")
@@ -131,4 +140,4 @@ def chat(question: dict = Body(...)):
     # the chat: {"question", "analysis", "history"} -> the assistant of Service 4 (it checks the JSON: 422 if wrong)
     if ORCHESTRATOR_URL == "":
         raise HTTPException(status_code=503, detail="L'assistant n'est pas connecté (ORCHESTRATOR_URL vide)")
-    return send_to_service(chat_url(), json=question, timeout=CHAT_TIMEOUT)
+    return send_to_service(chat_url(), json=question, timeout=CHAT_TIMEOUT, down_message=CHAT_DOWN)

@@ -167,3 +167,20 @@ def test_log_inference_survives_an_mlflow_error(monkeypatch):
     result = {"model": "CNN", "prediction": "abnormal", "probability_abnormal": 0.9, "warning": None,
               "duration_s": 6.0, "benchmark": []}
     engine.log_inference(result, 12.0)               # MLflow unreachable (or not installed): no exception
+
+
+def test_health_answers_while_the_warm_up_is_running(monkeypatch):
+    # the warm-up runs in a background thread: /health must answer at once, with "warming_up": true
+    import time
+
+    def slow_model(m, signal):
+        time.sleep(0.3)    # a slow model (like ResNet50 on a busy PC)
+
+    monkeypatch.setattr(engine, "run_model", slow_model)
+    engine.warmed_up.clear()
+    thread = engine.start_warm_up()
+    start = time.time()
+    data = client.get("/health").json()
+    assert time.time() - start < 2 and data["status"] == "ok" and data["warming_up"] is True
+    thread.join(timeout=30)
+    assert client.get("/health").json()["warming_up"] is False

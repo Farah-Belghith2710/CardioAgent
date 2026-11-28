@@ -41,7 +41,7 @@ For each model, all the versions (yours, Zaineb's, mixes of the two) were run on
 - **3 agents**: Analyste (reads the numbers) → Cardiologue (explains with the RAG documents, with citations) →
   Auditeur (checks: no diagnosis, no prescription, sources, a doctor in the disclaimer). Pydantic checks the JSON.
 - **Fine-tuning QLoRA** (Google Colab, T4 GPU): Qwen 2.5 7B on 506 French examples → `cardio-llm` (GGUF 4-bit).
-- **Tests**: 115 tests, 92 % coverage, GitHub Actions at each push (no key needed).
+- **Tests**: 116 tests, 91 % coverage, GitHub Actions at each push (no key needed).
 
 ## 3b. The chat with the assistant (branch `chat-feature`)
 
@@ -65,6 +65,18 @@ For each model, all the versions (yours, Zaineb's, mixes of the two) were run on
 - The footer of the page says « Mode en ligne » or « Mode local ».
 - If the key is wrong or there is no internet: the report is the safe one written by the code, and the chat says
   « Le service d'IA en ligne n'est pas disponible pour le moment (vérifiez la clé dans .env). ».
+
+## 3d. The 503 of the audio engine is fixed + the dark page (28/11)
+
+- **What was wrong**: the audio engine warmed up its 5 models *before* opening its port, so on a busy PC (and with
+  `llm-server` started by Docker Desktop's ▶ button) it stayed deaf for minutes: « Service injoignable » (503).
+- **Now**: it opens its port at once and warms up in the background (`/health` says `warming_up`); each model uses
+  2 CPU threads; the page says « Le moteur audio démarre… Réessayez dans quelques secondes » instead of a Python
+  error. A cold start takes ~55 s instead of minutes; the scripts no longer rebuild the images (`-Build` if you
+  change the code).
+- **Use the scripts** (not the ▶ of the whole stack in Docker Desktop): in the online mode, `llm-server` must not run.
+- **The page**: dark navy theme with a soft blue glow, the heart icon in the browser tab, the title
+  « CardioAgent-Ops », no subtitle, and the status « ● Mode en ligne » fully visible.
 
 ## 4. Questions the prof may ask (and short answers)
 

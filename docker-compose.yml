@@ -69,13 +69,14 @@ services:
       - "8001:8001"
     depends_on:
       mlflow-server:
-        condition: service_healthy
+        condition: service_started                     # MLflow is only for the logs: no need to wait for it
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/health')"]
       interval: 10s
       timeout: 5s
-      retries: 30                                      # a busy PC: wait up to 5 more minutes before "unhealthy"
-      start_period: 300s                               # the warm-up of the 5 models at start (main.py)
+      retries: 12
+      start_period: 60s                                # the engine listens at once (the warm-up is in the background)
+      start_interval: 2s                               # during the start: a check every 2 s
     networks: [cardio-net]
     restart: unless-stopped
 
@@ -106,16 +107,17 @@ services:
       vector-db:
         condition: service_healthy
       llm-server:
-        condition: service_healthy
-        required: false                                # only in the local mode: the online mode does not need it
+        condition: service_started                     # not "healthy": the page opens while the model loads (the first
+        required: false                                # report waits for it) | only in the local mode
       mlflow-server:
-        condition: service_healthy
+        condition: service_started                     # MLflow is only for the logs: no need to wait for it
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8002/health')"]
       interval: 10s
       timeout: 10s
-      retries: 30
-      start_period: 300s                               # loading LangGraph + the embedding model takes time on our PC
+      retries: 12
+      start_period: 120s                               # the embedding model of the RAG loads in the background
+      start_interval: 2s
     networks: [cardio-net]
     restart: unless-stopped
 
@@ -131,16 +133,18 @@ services:
       ORCHESTRATOR_TIMEOUT: "900"
     ports:
       - "8000:8000"
-    depends_on:
-      audio-engine:
-        condition: service_healthy
+    depends_on:                                        # started, not "healthy": the page opens at once, and says
+      audio-engine:                                    # "Le moteur audio démarre…" until the engine answers
+        condition: service_started
       agent-orchestrator:
-        condition: service_healthy
+        condition: service_started
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 10s
       timeout: 5s
       retries: 12
+      start_period: 30s
+      start_interval: 2s
     networks: [cardio-net]
     restart: unless-stopped
 

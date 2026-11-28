@@ -12,6 +12,7 @@ The benchmark of our 5 models (exported to ONNX by the notebook 05) on each hear
 import io
 import json
 import os
+import threading
 import time
 
 import librosa
@@ -41,6 +42,12 @@ if os.path.exists(os.path.join(HERE, "magma_lut.npy")):
 # the ONNX models are loaded ONCE, when the container starts (not at each request).
 # A missing file is skipped with a warning (resnet50.onnx is ~95 MB, too big for git: the notebook 05 makes it),
 # so the engine also starts in the CI and after a fresh clone.
+# 2 threads per model: by default ONNX Runtime takes all the CPUs of Docker (12) for each model, and fights with the
+# other containers (and the LLM) for them; 2 is enough for 1 wav and keeps the PC responsive
+options = ort.SessionOptions()
+options.intra_op_num_threads = 2
+options.inter_op_num_threads = 1
+
 sessions = {}
 models = []            # the models of the benchmark that are really loaded, in the benchmark order
 missing_models = []
@@ -49,7 +56,13 @@ for m in benchmark["models"]:
         continue           # the ensemble has no file: it is checked just below
     path = os.path.join(HERE, m["file"])
     if os.path.exists(path) and (m["model"] != "ResNet50" or MAGMA_LUT is not None):
-        sessions[m["model"]] = ort.InferenceSession(path)
+        try:
+            sessions[m["model"]] = ort.InferenceSession(path, sess_options=options,
+                                                        providers=["CPUExecutionProvider"])
+        except Exception as error:
+            # a broken file must not stop the engine: the model is skipped, the others still answer
+            missing_models.append(m["model"])
+            print("WARNING:", m["file"], "could not be loaded -> the model", m["model"], "is skipped:", error)
     else:
         missing_models.append(m["model"])
         print("WARNING:", m["file"], "not found -> the model", m["model"], "is skipped (run notebook 05 to make it)")
@@ -245,11 +258,34 @@ def log_inference(result, latency_ms):
 
 
 # warm-up: the first call of librosa compiles some of its functions (numba) and ONNX Runtime prepares each model.
-# We do it once now, when the container starts, so the first real request is not slow.
-warm_up_signal = np.random.default_rng(0).normal(0, 0.1, SR * 6).astype(np.float32)
-for m in models:
-    if m["model"] != "Ensemble":
-        run_model(m, warm_up_signal)
+# It runs in a BACKGROUND thread: the engine listens on port 8001 at once (/health answers "warming_up": true).
+# Before, it ran before the server started: on a busy PC the gateway got "Connection refused" (503) for minutes.
+warmed_up = threading.Event()    # set when the warm-up is finished
+
+
+def warm_up():
+    start = time.time()
+    signal = np.random.default_rng(0).normal(0, 0.1, SR * 6).astype(np.float32)
+    for m in models:
+        if m["model"] != "Ensemble":
+            try:
+                run_model(m, signal)
+            except Exception as error:
+                print("WARNING: the warm-up of", m["model"], "failed:", error)
+    warmed_up.set()
+    print("warm-up finished in {:.1f} s".format(time.time() - start))
+
+
+def start_warm_up():
+    thread = threading.Thread(target=warm_up, daemon=True)
+    thread.start()
+    return thread
+
+
+if os.getenv("AUDIO_WARM_UP", "1") == "1":
+    start_warm_up()
+else:
+    warmed_up.set()    # the tests (AUDIO_WARM_UP=0): no warm-up to wait for
 
 
 app = FastAPI(title="audio-engine", description="Service 3 : moteur audio (benchmark de nos 5 modèles au format ONNX)")
@@ -258,7 +294,8 @@ app = FastAPI(title="audio-engine", description="Service 3 : moteur audio (bench
 @app.get("/health")
 def health():
     # quick check that the container is running, and which models it has
-    return {"status": "ok", "models": [m["model"] for m in models], "missing_models": missing_models,
+    return {"status": "ok", "warming_up": not warmed_up.is_set(), "models": [m["model"] for m in models],
+            "missing_models": missing_models,
             "best_model": benchmark["best_model"], "mlflow_logging": MLFLOW_TRACKING_URI != ""}
 
 

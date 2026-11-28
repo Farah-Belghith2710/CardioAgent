@@ -3,10 +3,11 @@
 #
 #   powershell -ExecutionPolicy Bypass -File scripts\start_local_mode.ps1                     (model qwen2.5:3b-instruct)
 #   powershell -ExecutionPolicy Bypass -File scripts\start_local_mode.ps1 -Model cardio-llm   (our fine-tuned model)
+#   add -Build after a change of the code (rebuild the images)
 #
 # The first start downloads the model (~2 GB, kept in the Docker volume ollama-data) and loads it in memory.
 # Back to the online mode: scripts\start_online_mode.ps1
-param([string]$Model = "qwen2.5:3b-instruct")
+param([string]$Model = "qwen2.5:3b-instruct", [switch]$Build)
 
 Set-Location (Split-Path $PSScriptRoot -Parent)    # the folder of docker-compose.yml and .env
 
@@ -14,7 +15,7 @@ Set-Location (Split-Path $PSScriptRoot -Parent)    # the folder of docker-compos
 $env:LLM_PROVIDER = "ollama"
 $env:LLM_MODEL = $Model
 
-docker compose --profile local-llm up -d --build
+if ($Build) { docker compose --profile local-llm up -d --build } else { docker compose --profile local-llm up -d }
 docker compose --profile local-llm ps
 Write-Host "Local mode started: http://localhost:8000 (the footer of the page says 'Mode local')."
 Write-Host "The LLM can need several minutes to load the first time (docker compose ps: llm-server healthy)."

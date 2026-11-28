@@ -10,6 +10,7 @@ go to the provider. In both modes the audio never reaches the LLM, the file name
 patient is stored. Each run logs only metrics to MLflow (experiment "llm_inference"): never the texts, never the key.
 """
 import os
+import threading
 
 import requests
 from fastapi import BackgroundTasks, FastAPI
@@ -73,13 +74,18 @@ def log_chat(metrics):
 
 
 # warm-up (only in the container: RAG_WARMUP=1): load the embedding model of the RAG once, at start. Without it, the
-# first report or chat question waits for this model (on a busy PC: more than 2 minutes, even in the online mode)
-if os.getenv("RAG_WARMUP", "") == "1":
+# first report or chat question waits for this model (on a busy PC: more than 2 minutes, even in the online mode).
+# In a background thread: the orchestrator answers /health at once while the model loads.
+def rag_warm_up():
     try:
         list(get_model().embed(["bruit du coeur"]))
         print("RAG warm-up: the embedding model is loaded")
     except Exception as error:
         print("RAG warm-up failed (the first question will be slower):", error)
+
+
+if os.getenv("RAG_WARMUP", "") == "1":
+    threading.Thread(target=rag_warm_up, daemon=True).start()
 
 
 app = FastAPI(title="agent-orchestrator",

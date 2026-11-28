@@ -11,6 +11,9 @@ import numpy as np
 import pytest
 import soundfile as sf
 
+# no automatic warm-up of the audio engine in the tests (a test starts its own, with a slow fake model)
+os.environ.setdefault("AUDIO_WARM_UP", "0")
+
 # the repo root, so that "import audio_engine.main", "import api.main", "import agents.graph" work
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
