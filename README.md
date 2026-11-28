@@ -330,10 +330,10 @@ orchestrator is down, its 4xx message passed through, timeout 300 s).
 audio result in ~1 s (shown at once, and the chat can use it), then `POST /report` with it gives the agents' report
 when the LLM has finished. `POST /analyze_pcg` without the parameter still returns both (for API users).
 
-The page (dark theme, online mode with Groq), tested on Farah's PC on 28/11/2026 with a real test wav (8 s): the
-audio result + the report of the agents in **5.6 s** (**validated by the Auditeur**), *« Dois-je voir un médecin ? »*
-→ a careful answer with the numbers of the analysis, a cardiologist and SAMU 190 in **1.2 s**, *« comment faire une
-pizza ? »* → the fixed refusal in 0.3 s. The status at the top right says « Mode en ligne » (or « Mode local »).
+The page (white, with a blue that glows a little on the important things; online mode with Groq), tested on Farah's
+PC on 28/11/2026 with a real test wav (8 s): the audio result + the report of the agents in **3.1 s** (**validated by
+the Auditeur**), *« Dois-je voir un médecin ? »* → a careful answer with the numbers of the analysis, a cardiologist
+and SAMU 190 in **1.5 s**, *« comment faire une pizza ? »* → the fixed refusal in 0.3 s. The status at the top right says « Mode en ligne » (or « Mode local »).
 
 ![The page with an analysis, the report and the chat](docs/page_analysis_and_chat.png)
 

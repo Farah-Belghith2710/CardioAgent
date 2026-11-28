@@ -5,31 +5,31 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>CardioAgent-Ops</title>
   <!-- the icon of the browser tab: the same heart + pulse as the header (inline SVG, no file) -->
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48' fill='none'%3E%3Cpath d='M24 41 C11 32 5 25 5 17 C5 11 9.5 7 15 7 C19 7 22 9.5 24 12.5 C26 9.5 29 7 33 7 C38.5 7 43 11 43 17 C43 25 37 32 24 41 Z' stroke='%233b82f6' stroke-width='3.5' stroke-linejoin='round'/%3E%3Cpath d='M9 23 H17 L20 17 L24 29 L27 21 L29 23 H39' stroke='%2360a5fa' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48' fill='none'%3E%3Cpath d='M24 41 C11 32 5 25 5 17 C5 11 9.5 7 15 7 C19 7 22 9.5 24 12.5 C26 9.5 29 7 33 7 C38.5 7 43 11 43 17 C43 25 37 32 24 41 Z' stroke='%232563eb' stroke-width='3.5' stroke-linejoin='round'/%3E%3Cpath d='M9 23 H17 L20 17 L24 29 L27 21 L29 23 H39' stroke='%233b82f6' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
   <style>
-    /* dark theme: very dark navy background, lighter cards, light text, a blue that glows a little on the important
-       things only (main buttons, drop zone, official result, probability bar, focused input, chips) - no framework */
+    /* white theme with a blue that glows a little on the important things only (main buttons, drop zone, official
+       result, probability bar, focused input, chips) - plain CSS, no framework */
     :root {
-      --bg: #0b1220; --card: #111a2e; --card-2: #0d1526; --border: #1e2a44; --border-2: #2b3b5c;
-      --text: #e5e7eb; --muted: #94a3b8;
-      --blue: #3b82f6; --blue-hover: #60a5fa; --blue-tint: rgba(59, 130, 246, 0.12);
-      --glow: 0 0 16px rgba(59, 130, 246, 0.35);
-      --teal: #2dd4bf; --teal-tint: rgba(45, 212, 191, 0.12);
-      --red: #ef4444; --red-text: #f87171; --red-tint: rgba(239, 68, 68, 0.12);
-      --amber: #fbbf24; --amber-tint: rgba(251, 191, 36, 0.10);
+      --bg: #ffffff; --card: #ffffff; --card-2: #f8fafc; --border: #e5e7eb; --border-2: #cbd5e1;
+      --text: #111827; --muted: #64748b;
+      --blue: #2563eb; --blue-hover: #3b82f6; --blue-text: #1d4ed8; --blue-tint: rgba(37, 99, 235, 0.08);
+      --glow: 0 0 16px rgba(37, 99, 235, 0.35);
+      --teal: #0f766e; --teal-tint: rgba(13, 148, 136, 0.10);
+      --red: #dc2626; --red-text: #b91c1c; --red-tint: rgba(220, 38, 38, 0.08);
+      --amber: #92400e; --amber-tint: #fffbeb;
     }
     * { box-sizing: border-box; }
     body { margin: 0; background: var(--bg); color: var(--text);
            font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; font-size: 15px; line-height: 1.5; }
     header { display: flex; align-items: center; gap: 12px; padding: 14px 24px; border-bottom: 1px solid var(--border);
-             background: var(--card-2); }
-    header svg { width: 34px; height: 34px; flex: none; filter: drop-shadow(0 0 6px rgba(59, 130, 246, 0.45)); }
+             background: #ffffff; }
+    header svg { width: 34px; height: 34px; flex: none; filter: drop-shadow(0 0 6px rgba(37, 99, 235, 0.40)); }
     header h1 { font-size: 20px; margin: 0; letter-spacing: 0.2px; }
     /* the status on the right: never cut ("● Mode en ligne") */
     .status { margin-left: auto; flex: none; white-space: nowrap; font-size: 13px; color: var(--text); display: flex;
-              align-items: center; gap: 7px; padding: 5px 12px; border: 1px solid var(--border-2); border-radius: 999px;
-              background: var(--card); }
-    .status .dot { width: 9px; height: 9px; border-radius: 50%; background: #64748b; }
+              align-items: center; gap: 7px; padding: 5px 12px; border: 1px solid var(--border); border-radius: 999px;
+              background: #ffffff; }
+    .status .dot { width: 9px; height: 9px; border-radius: 50%; background: #94a3b8; }
     .status.online .dot { background: #22c55e; box-shadow: 0 0 8px rgba(34, 197, 94, 0.6); }
     .status.offline .dot { background: var(--red); }
 
@@ -46,7 +46,8 @@
     @media (max-width: 900px) { .layout { grid-template-columns: 1fr; grid-template-areas: "analysis" "report" "chat"; } }
     .placeholder { color: var(--muted); font-size: 14px; }
 
-    .card { border: 1px solid var(--border); border-radius: 12px; background: var(--card); padding: 16px 18px; margin-bottom: 16px; }
+    .card { border: 1px solid var(--border); border-radius: 12px; background: var(--card); padding: 16px 18px; margin-bottom: 16px;
+            box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06); }
     .card h2 { font-size: 16px; margin: 0 0 12px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
     .card h2 .right { margin-left: auto; display: flex; gap: 6px; flex-wrap: wrap; }
 
@@ -65,32 +66,32 @@
     .btn { border: 1px solid var(--blue); background: var(--blue); color: #fff; border-radius: 8px; padding: 9px 18px;
            font-size: 15px; font-weight: 600; cursor: pointer; box-shadow: var(--glow); transition: background 0.2s; }
     .btn:hover { background: var(--blue-hover); border-color: var(--blue-hover); }
-    .btn.secondary { background: transparent; color: var(--blue-hover); border-color: var(--border-2); box-shadow: none; }
+    .btn.secondary { background: #ffffff; color: var(--blue-text); border-color: var(--border-2); box-shadow: none; }
     .btn.secondary:hover { background: var(--blue-tint); border-color: var(--blue); }
     .btn:disabled { opacity: 0.55; cursor: wait; }
 
     /* the results */
     .official { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
     .big-badge { font-size: 22px; font-weight: 700; padding: 8px 18px; border-radius: 10px; }
-    .big-badge.normal { background: var(--teal-tint); color: var(--teal); border: 1px solid rgba(45, 212, 191, 0.45);
-                        box-shadow: 0 0 16px rgba(45, 212, 191, 0.25); }
-    .big-badge.abnormal { background: var(--red-tint); color: var(--red-text); border: 1px solid rgba(239, 68, 68, 0.5);
-                          box-shadow: 0 0 16px rgba(239, 68, 68, 0.30); }
+    .big-badge.normal { background: var(--teal-tint); color: var(--teal); border: 1px solid rgba(13, 148, 136, 0.45);
+                        box-shadow: 0 0 16px rgba(13, 148, 136, 0.25); }
+    .big-badge.abnormal { background: var(--red-tint); color: var(--red-text); border: 1px solid rgba(220, 38, 38, 0.45);
+                          box-shadow: 0 0 16px rgba(220, 38, 38, 0.25); }
     .proba { flex: 1; min-width: 200px; }
     .proba-label { display: flex; justify-content: space-between; font-size: 13px; color: var(--muted); }
     .proba-label strong { color: var(--text); }
-    .bar { position: relative; height: 12px; border-radius: 6px; background: var(--card-2); border: 1px solid var(--border); overflow: hidden; }
+    .bar { position: relative; height: 12px; border-radius: 6px; background: #f1f5f9; border: 1px solid var(--border); overflow: hidden; }
     .bar .fill { height: 100%; background: var(--blue); box-shadow: var(--glow); }
-    .bar .mid { position: absolute; left: 50%; top: 0; bottom: 0; width: 2px; background: #475569; }
+    .bar .mid { position: absolute; left: 50%; top: 0; bottom: 0; width: 2px; background: #94a3b8; }
     .meta { color: var(--muted); font-size: 13px; margin-top: 10px; }
     .badge { display: inline-block; font-size: 12px; font-weight: 600; padding: 2px 9px; border-radius: 999px; border: 1px solid; }
-    .badge.green { color: var(--teal); background: var(--teal-tint); border-color: rgba(45, 212, 191, 0.4); }
-    .badge.red { color: var(--red-text); background: var(--red-tint); border-color: rgba(239, 68, 68, 0.45); }
-    .badge.blue { color: var(--blue-hover); background: var(--blue-tint); border-color: rgba(59, 130, 246, 0.45); }
-    .badge.grey { color: var(--muted); background: var(--card-2); border-color: var(--border-2); }
-    .warning { background: var(--amber-tint); color: var(--amber); border: 1px solid rgba(251, 191, 36, 0.35); border-radius: 8px; padding: 8px 12px; margin-top: 10px; font-size: 14px; }
-    .error { background: rgba(127, 29, 29, 0.35); color: #fecaca; border: 1px solid #7f1d1d; border-radius: 10px; padding: 10px 12px; margin-bottom: 16px; }
-    .error strong { display: block; color: #fca5a5; }
+    .badge.green { color: var(--teal); background: var(--teal-tint); border-color: rgba(13, 148, 136, 0.35); }
+    .badge.red { color: var(--red-text); background: var(--red-tint); border-color: rgba(220, 38, 38, 0.35); }
+    .badge.blue { color: var(--blue-text); background: var(--blue-tint); border-color: rgba(37, 99, 235, 0.35); }
+    .badge.grey { color: var(--muted); background: var(--card-2); border-color: var(--border); }
+    .warning { background: var(--amber-tint); color: var(--amber); border: 1px solid #fde68a; border-radius: 8px; padding: 8px 12px; margin-top: 10px; font-size: 14px; }
+    .error { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; border-radius: 10px; padding: 10px 12px; margin-bottom: 16px; }
+    .error strong { display: block; color: #b91c1c; }
 
     .table-wrap { overflow-x: auto; }
     table { border-collapse: collapse; width: 100%; font-size: 13px; }
@@ -107,7 +108,7 @@
     dd ul { margin: 0; padding-left: 18px; }
     @media (max-width: 600px) { .row { grid-template-columns: 1fr; gap: 2px; } }
     .waiting { display: flex; align-items: center; gap: 10px; color: var(--muted); }
-    .spinner { width: 16px; height: 16px; border: 2px solid rgba(59, 130, 246, 0.25); border-top-color: var(--blue); border-radius: 50%; animation: spin 0.9s linear infinite; flex: none; }
+    .spinner { width: 16px; height: 16px; border: 2px solid rgba(37, 99, 235, 0.25); border-top-color: var(--blue); border-radius: 50%; animation: spin 0.9s linear infinite; flex: none; }
     @keyframes spin { to { transform: rotate(360deg); } }
 
     /* the chat */
@@ -117,29 +118,30 @@
     .chat-head p { margin: 4px 0 0; color: var(--muted); font-size: 13px; }
     .messages { flex: 1; overflow-y: auto; padding: 14px 18px; display: flex; flex-direction: column; gap: 10px; }
     .msg { max-width: 85%; padding: 9px 13px; border-radius: 12px; white-space: pre-wrap; word-wrap: break-word; }
-    .msg.user { align-self: flex-end; background: var(--blue); color: #fff; border-bottom-right-radius: 4px; }
-    .msg.assistant { align-self: flex-start; background: #1e293b; color: var(--text); border-bottom-left-radius: 4px; }
-    .msg.assistant.refused { background: #172033; border: 1px solid var(--border-2); }
-    .msg.assistant.failed { background: rgba(127, 29, 29, 0.35); color: #fecaca; border: 1px solid #7f1d1d; }
-    .typing { align-self: flex-start; display: flex; align-items: center; gap: 8px; color: var(--blue-hover); font-size: 13px; }
-    .dots { display: flex; gap: 4px; background: #1e293b; padding: 10px 12px; border-radius: 12px; }
+    .msg.user { align-self: flex-end; background: var(--blue); color: #fff; border-bottom-right-radius: 4px;
+                box-shadow: 0 0 12px rgba(37, 99, 235, 0.25); }
+    .msg.assistant { align-self: flex-start; background: #f1f5f9; color: var(--text); border-bottom-left-radius: 4px; }
+    .msg.assistant.refused { background: var(--card-2); border: 1px solid var(--border); }
+    .msg.assistant.failed { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
+    .typing { align-self: flex-start; display: flex; align-items: center; gap: 8px; color: var(--blue-text); font-size: 13px; }
+    .dots { display: flex; gap: 4px; background: #f1f5f9; padding: 10px 12px; border-radius: 12px; }
     .dots span { width: 6px; height: 6px; border-radius: 50%; background: var(--blue); animation: blink 1.2s infinite; }
     .dots span:nth-child(2) { animation-delay: 0.2s; }
     .dots span:nth-child(3) { animation-delay: 0.4s; }
     @keyframes blink { 0%, 80%, 100% { opacity: 0.3; } 40% { opacity: 1; } }
     .chips { display: flex; flex-wrap: wrap; gap: 6px; padding: 10px 18px 0; border-top: 1px solid var(--border); }
-    .chip { border: 1px solid var(--border-2); background: var(--card-2); color: var(--blue-hover); border-radius: 999px;
+    .chip { border: 1px solid rgba(37, 99, 235, 0.30); background: var(--blue-tint); color: var(--blue-text); border-radius: 999px;
             padding: 4px 11px; font-size: 13px; cursor: pointer; transition: border-color 0.2s, box-shadow 0.2s; }
     .chip:hover { border-color: var(--blue); box-shadow: var(--glow); }
     .chat-input { display: flex; gap: 8px; padding: 10px 18px 14px; }
     .chat-input input { flex: 1; border: 1px solid var(--border-2); border-radius: 8px; padding: 9px 12px; font-size: 15px;
-                        color: var(--text); background: var(--card-2); }
+                        color: var(--text); background: #ffffff; }
     .chat-input input::placeholder { color: var(--muted); }
     .chat-input input:focus { outline: none; border-color: var(--blue); box-shadow: var(--glow); }
     @media (max-width: 900px) { .chat { position: static; height: 560px; } }
 
     footer { max-width: 1840px; margin: 0 auto; padding: 0 24px 20px; font-size: 13px; display: flex; gap: 16px; justify-content: flex-end; }
-    footer a { color: var(--blue-hover); text-decoration: none; }
+    footer a { color: var(--blue-text); text-decoration: none; }
     footer .mode-note { margin-right: auto; color: var(--muted); }
   </style>
 </head>
@@ -148,8 +150,8 @@
     <!-- an original icon: a heart outline with a pulse line inside (inline SVG) -->
     <svg viewBox="0 0 48 48" fill="none" aria-hidden="true">
       <path d="M24 41 C11 32 5 25 5 17 C5 11 9.5 7 15 7 C19 7 22 9.5 24 12.5 C26 9.5 29 7 33 7 C38.5 7 43 11 43 17 C43 25 37 32 24 41 Z"
-            stroke="#3b82f6" stroke-width="3" stroke-linejoin="round"/>
-      <path d="M9 23 H17 L20 17 L24 29 L27 21 L29 23 H39" stroke="#60a5fa" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+            stroke="#2563eb" stroke-width="3" stroke-linejoin="round"/>
+      <path d="M9 23 H17 L20 17 L24 29 L27 21 L29 23 H39" stroke="#3b82f6" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
     </svg>
     <h1>CardioAgent-Ops</h1>
     <span id="status" class="status"><span class="dot"></span><span id="status-text">Connexion…</span></span>
@@ -162,7 +164,7 @@
         <div class="card">
           <h2>1. Votre enregistrement</h2>
           <label id="drop" class="drop" for="file">
-            <svg viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2" stroke-linecap="round" aria-hidden="true">
               <path d="M2 12h3l2-5 3 10 3-8 2 3h7"/>
             </svg>
             <span id="drop-title" class="drop-title">Glissez votre fichier .wav ici</span>

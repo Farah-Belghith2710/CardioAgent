@@ -75,8 +75,9 @@ For each model, all the versions (yours, Zaineb's, mixes of the two) were run on
   error. A cold start takes ~55 s instead of minutes; the scripts no longer rebuild the images (`-Build` if you
   change the code).
 - **Use the scripts** (not the ▶ of the whole stack in Docker Desktop): in the online mode, `llm-server` must not run.
-- **The page**: dark navy theme with a soft blue glow, the heart icon in the browser tab, the title
-  « CardioAgent-Ops », no subtitle, and the status « ● Mode en ligne » fully visible.
+- **The page**: white again, with a soft blue glow on the important things (buttons, drop zone, result, probability
+  bar, your chat bubbles), the heart icon in the browser tab, the title « CardioAgent-Ops », no subtitle, and the
+  status « ● Mode en ligne » fully visible.
 
 ## 4. Questions the prof may ask (and short answers)
 
